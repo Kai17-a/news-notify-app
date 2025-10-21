@@ -1,38 +1,56 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: >
-  sam-app
+Description: Notify Tech News
 
-  Sample SAM Template for sam-app
+Parameters:
+  WebhookUrl:
+    Type: String
 
-# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+
 Globals:
   Function:
-    Timeout: 3
+    Timeout: 5
+    MemorySize: 128
 
 Resources:
   NewsNotifyFunction:
     Type: AWS::Serverless::Function
     Properties:
+      FunctionName: news-notify-function
       CodeUri: app/
       Handler: app.lambda_handler
       Runtime: python3.13
       Architectures:
         - x86_64
-      Events:
-        NewsNotify:
-          Type: Api
-          Properties:
-            Path: /hello
-            Method: get
+      Environment:
+        Variables:
+          WEBHOOK_URL: !Ref WebhookUrl
+      # Events:
+      #   NewsNotify:
+      #     Type: Api
+      #     Properties:
+      #       Path: /hello
+      #       Method: get
+    
+  NewsNotifyAppTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: news_notify_app_table
+      AttributeDefinitions:
+        - AttributeName: title
+          AttributeType: S
+      KeySchema:
+        - AttributeName: title
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        Enabled: true
+        AttributeName: expired_at_unix_time
 
-# Outputs:
-#   NewsNotifyApi:
-#     Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-#     Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/hello/"
-#   NewsNotifyFunction:
-#     Description: "Hello World Lambda Function ARN"
-#     Value: !GetAtt NewsNotifyFunction.Arn
-#   NewsNotifyFunctionIamRole:
-#     Description: "Implicit IAM Role created for Hello World function"
-#     Value: !GetAtt NewsNotifyFunctionRole.Arn
+Outputs:
+  NewsNotifyFunctionArn:
+    Description: "Lambda Function ARN"
+    Value: !GetAtt NewsNotifyFunction.Arn
+  NewsNotifyTableName:
+    Description: "DynamoDB Table Name"
+    Value: !Ref NewsNotifyAppTable

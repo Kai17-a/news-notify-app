@@ -5,7 +5,11 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "beautifulsoup4>=4.14.2",
     "boto3>=1.40.55",
+    "feedparser>=6.0.12",
+    "pydantic>=2.12.3",
     "pytest>=8.4.2",
+    "python-dotenv>=1.1.1",
     "requests>=2.32.5",
 ]
