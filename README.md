@@ -1,130 +1,299 @@
-# sam-app
+# News Notify App
 
-This project contains source code and supporting files for a serverless application that you can deploy with the SAM CLI. It includes the following files and folders.
+ニュースサイトから記事を取得し、複数の通知サービスに投稿するアプリケーション。
 
-- hello_world - Code for the application's Lambda function.
-- events - Invocation events that you can use to invoke the function.
-- tests - Unit tests for the application code. 
-- template.yaml - A template that defines the application's AWS resources.
+## 機能
 
-The application uses several AWS resources, including Lambda functions and an API Gateway API. These resources are defined in the `template.yaml` file in this project. You can update the template to add AWS resources through the same deployment process that updates your application code.
+- RSSフィードとWebスクレイピングによる記事取得
+- 重複記事の自動検出・除外
+- 複数通知サービス対応（Discord、Slack、Microsoft Teams）
+- SQLiteによるデータ管理
+- 並行処理による高速化
 
-If you prefer to use an integrated development environment (IDE) to build and test your application, you can use the AWS Toolkit.  
-The AWS Toolkit is an open source plug-in for popular IDEs that uses the SAM CLI to build and deploy serverless applications on AWS. The AWS Toolkit also adds a simplified step-through debugging experience for Lambda function code. See the following links to get started.
+## 必要な環境
 
-* [CLion](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [GoLand](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [IntelliJ](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [WebStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [Rider](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PhpStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PyCharm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [RubyMine](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [DataGrip](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [VS Code](https://docs.aws.amazon.com/toolkit-for-vscode/latest/userguide/welcome.html)
-* [Visual Studio](https://docs.aws.amazon.com/toolkit-for-visual-studio/latest/user-guide/welcome.html)
+- Python 3.13+
+- 必要なライブラリ（requirements.txtを参照）
 
-## Deploy the sample application
+## インストール
 
-The Serverless Application Model Command Line Interface (SAM CLI) is an extension of the AWS CLI that adds functionality for building and testing Lambda applications. It uses Docker to run your functions in an Amazon Linux environment that matches Lambda. It can also emulate your application's build environment and API.
+### uvを使用する場合（推奨）
+```bash
+uv sync
+```
 
-To use the SAM CLI, you need the following tools.
+### pipを使用する場合
+```bash
+pip install -r requirements.txt
+```
 
-* SAM CLI - [Install the SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
-* [Python 3 installed](https://www.python.org/downloads/)
-* Docker - [Install Docker community edition](https://hub.docker.com/search/?type=edition&offering=community)
+## データベース初期化
 
-To build and deploy your application for the first time, run the following in your shell:
+アプリケーション初回実行時に`news_notify_app.db`が自動作成される。
+
+## 設定
+
+### Web API経由での設定（推奨）
+
+#### Webhookの管理
+```bash
+# 一覧取得
+curl http://localhost:8000/webhooks
+
+# 作成
+curl -X POST http://localhost:8000/webhooks \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Discord Main",
+    "endpoint": "https://discord.com/api/webhooks/...",
+    "service_type": "discord"
+  }'
+
+# 更新（アクティブ状態の変更）
+curl -X PUT http://localhost:8000/webhooks/1 \
+  -H "Content-Type: application/json" \
+  -d '{"is_active": false}'
+
+# 削除
+curl -X DELETE http://localhost:8000/webhooks/1
+```
+
+#### Websiteの管理
+```bash
+# 一覧取得
+curl http://localhost:8000/websites
+
+# RSSサイトの作成
+curl -X POST http://localhost:8000/websites \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "サイト名",
+    "type": "rss",
+    "url": "https://example.com/feed.xml",
+    "avatar": "https://example.com/icon.png",
+    "needs_translation": false
+  }'
+
+# スクレイピングサイトの作成
+curl -X POST http://localhost:8000/websites \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "サイト名",
+    "type": "scraping",
+    "url": "https://example.com/news/",
+    "avatar": "https://example.com/icon.png",
+    "selector": "article h2 a",
+    "needs_translation": false
+  }'
+
+# 更新（アクティブ状態の変更）
+curl -X PUT http://localhost:8000/websites/1 \
+  -H "Content-Type: application/json" \
+  -d '{"is_active": false}'
+
+# 削除
+curl -X DELETE http://localhost:8000/websites/1
+```
+
+### Python経由での設定
+
+```python
+from app import db, Webhook, Website
+
+# Webhook追加
+webhook = Webhook(
+    name="Discord Main",
+    endpoint="https://discord.com/api/webhooks/...",
+    service_type="discord"
+)
+db.add_webhook(webhook)
+
+# Website追加
+website = Website(
+    name="サイト名",
+    type="rss",
+    url="https://example.com/feed.xml",
+    needs_translation=False
+)
+db.add_website(website)
+```
+
+## 実行
+
+### CLIアプリケーション（記事収集）
+
+#### スケジューラー実行（定期実行）
+```bash
+# uvを使用する場合（推奨）
+uv run app
+
+# Pythonを直接使用する場合
+python app.py
+```
+
+毎日9:00（日本時間）に記事を取得し、新着記事を通知サービスに投稿する。
+
+#### 手動実行（1回のみ）
+```bash
+# uvを使用する場合（推奨）
+uv run app-once
+
+# Pythonを直接使用する場合
+python -c "from app import run_once; run_once()"
+```
+
+即座にニュース収集を1回だけ実行する。テストや手動更新に便利。
+
+### Web API（管理機能）
+```bash
+# uvを使用する場合（推奨）
+uv run api
+
+# Pythonを直接使用する場合
+python api.py
+```
+
+http://localhost:8000 でWeb APIが起動し、Webhook・Websiteの管理が可能。
+
+## データベース構造
+
+### articles テーブル
+- 取得した記事の保存
+- 重複チェック用ハッシュ値
+
+### webhooks テーブル
+- 通知先の管理
+- サービスタイプ別設定
+
+### websites テーブル
+- 記事取得元サイトの管理
+- 翻訳要否フラグ
+
+## 通知サービス
+
+### Discord
+- Webhook URL形式
+- 埋め込み形式で投稿
+
+### Slack
+- Block Kit形式
+- リンク付きリスト表示
+
+### Microsoft Teams
+- MessageCard形式
+- アクティビティカード表示
+
+## 設定管理
+
+### Webhookの状態変更
+```python
+db.update_webhook_status(webhook_id, False)  # 無効化
+```
+
+### Websiteの状態変更
+```python
+db.update_website_status(website_id, False)  # 無効化
+```
+
+### データ削除
+```python
+db.delete_webhook(webhook_id)
+db.delete_website(website_id)
+```
+
+## ログ
+
+標準出力にINFOレベルでログを出力。処理状況と統計情報を確認可能。
+
+## 実行例
 
 ```bash
-sam build --use-container
-sam deploy --guided
+# スケジューラー実行
+$ uv run app
+2025-10-25 11:35:10,743 - INFO - データベース初期化完了
+2025-10-25 11:35:10,743 - INFO - スケジューラー開始
+# 毎日9:00に以下のログが出力される
+2025-10-26 09:00:00,000 - INFO - ニュース収集処理開始
+
+# 手動実行
+$ uv run app-once
+2025-10-25 19:54:24,584 - INFO - ニュース収集を手動実行します
+2025-10-25 19:54:24,584 - INFO - ニュース収集処理開始
+2025-10-25 19:54:25,459 - INFO - ニュース収集の手動実行が完了しました
 ```
 
-The first command will build the source of your application. The second command will package and deploy your application to AWS, with a series of prompts:
+## トラブルシューティング
 
-* **Stack Name**: The name of the stack to deploy to CloudFormation. This should be unique to your account and region, and a good starting point would be something matching your project name.
-* **AWS Region**: The AWS region you want to deploy your app to.
-* **Confirm changes before deploy**: If set to yes, any change sets will be shown to you before execution for manual review. If set to no, the AWS SAM CLI will automatically deploy application changes.
-* **Allow SAM CLI IAM role creation**: Many AWS SAM templates, including this example, create AWS IAM roles required for the AWS Lambda function(s) included to access AWS services. By default, these are scoped down to minimum required permissions. To deploy an AWS CloudFormation stack which creates or modifies IAM roles, the `CAPABILITY_IAM` value for `capabilities` must be provided. If permission isn't provided through this prompt, to deploy this example you must explicitly pass `--capabilities CAPABILITY_IAM` to the `sam deploy` command.
-* **Save arguments to samconfig.toml**: If set to yes, your choices will be saved to a configuration file inside the project, so that in the future you can just re-run `sam deploy` without parameters to deploy changes to your application.
+### Webhookが設定されていない場合
+```
+ERROR - 投稿先のWebhookが設定されていません
+```
+→ Webhookを追加してください
 
-You can find your API Gateway Endpoint URL in the output values displayed after deployment.
+### Websiteが設定されていない場合
+```
+WARNING - データベースにアクティブなWebsiteが見つかりません
+```
+→ Websiteを追加してください
 
-## Use the SAM CLI to build and test locally
+### 記事取得エラー
+```
+ERROR - HTTP リクエストエラー [サイト名]: ...
+```
+→ URLやセレクタを確認してください
 
-Build your application with the `sam build --use-container` command.
+## ファイル構成
 
-```bash
-sam-app$ sam build --use-container
+```
+news-notify-app/
+├── app.py               # CLIアプリケーション（記事収集）
+├── api.py               # Web API（管理機能）
+├── pyproject.toml       # プロジェクト設定
+├── news_notify_app.db   # SQLiteデータベース（自動生成）
+├── requirements.txt     # 依存ライブラリ（pip用）
+└── README.md           # このファイル
 ```
 
-The SAM CLI installs dependencies defined in `hello_world/requirements.txt`, creates a deployment package, and saves it in the `.aws-sam/build` folder.
+## API エンドポイント
 
-Test a single function by invoking it directly with a test event. An event is a JSON document that represents the input that the function receives from the event source. Test events are included in the `events` folder in this project.
+### Webhook管理
+- `GET /webhooks` - Webhook一覧取得
+- `GET /webhooks/{id}` - 指定Webhook取得
+- `POST /webhooks` - Webhook作成
+- `PUT /webhooks/{id}` - Webhook更新
+- `DELETE /webhooks/{id}` - Webhook削除
 
-Run functions locally and invoke them with the `sam local invoke` command.
+### Website管理
+- `GET /websites` - Website一覧取得
+- `GET /websites/{id}` - 指定Website取得
+- `POST /websites` - Website作成
+- `PUT /websites/{id}` - Website更新
+- `DELETE /websites/{id}` - Website削除
 
-```bash
-sam-app$ sam local invoke HelloWorldFunction --event events/event.json
+### その他
+- `GET /` - API状態確認
+- `GET /health` - ヘルスチェック
+- `GET /stats` - 統計情報取得
+
+### API ドキュメント
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+
+## 翻訳機能
+
+`needs_translation=True`に設定されたWebsiteの記事タイトルは自動的に日本語に翻訳される。
+
+```python
+# 翻訳が必要なWebsiteの追加例
+website = Website(
+    name="TechCrunch",
+    type="rss",
+    url="https://techcrunch.com/feed/",
+    needs_translation=True  # 翻訳を有効化
+)
 ```
 
-The SAM CLI can also emulate your application's API. Use the `sam local start-api` to run the API locally on port 3000.
+- MyMemory Translation APIを使用（無料）
+- 既に日本語が含まれている場合は翻訳をスキップ
+- オリジナルタイトルは保持され、重複チェックに使用
 
-```bash
-sam-app$ sam local start-api
-sam-app$ curl http://localhost:3000/
-```
-
-The SAM CLI reads the application template to determine the API's routes and the functions that they invoke. The `Events` property on each function's definition includes the route and method for each path.
-
-```yaml
-      Events:
-        HelloWorld:
-          Type: Api
-          Properties:
-            Path: /hello
-            Method: get
-```
-
-## Add a resource to your application
-The application template uses AWS Serverless Application Model (AWS SAM) to define application resources. AWS SAM is an extension of AWS CloudFormation with a simpler syntax for configuring common serverless application resources such as functions, triggers, and APIs. For resources not included in [the SAM specification](https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md), you can use standard [AWS CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html) resource types.
-
-## Fetch, tail, and filter Lambda function logs
-
-To simplify troubleshooting, SAM CLI has a command called `sam logs`. `sam logs` lets you fetch logs generated by your deployed Lambda function from the command line. In addition to printing the logs on the terminal, this command has several nifty features to help you quickly find the bug.
-
-`NOTE`: This command works for all AWS Lambda functions; not just the ones you deploy using SAM.
-
-```bash
-sam-app$ sam logs -n HelloWorldFunction --stack-name "sam-app" --tail
-```
-
-You can find more information and examples about filtering Lambda function logs in the [SAM CLI Documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-logging.html).
-
-## Tests
-
-Tests are defined in the `tests` folder in this project. Use PIP to install the test dependencies and run tests.
-
-```bash
-sam-app$ pip install -r tests/requirements.txt --user
-# unit test
-sam-app$ python -m pytest tests/unit -v
-# integration test, requiring deploying the stack first.
-# Create the env variable AWS_SAM_STACK_NAME with the name of the stack we are testing
-sam-app$ AWS_SAM_STACK_NAME="sam-app" python -m pytest tests/integration -v
-```
-
-## Cleanup
-
-To delete the sample application that you created, use the AWS CLI. Assuming you used your project name for the stack name, you can run the following:
-
-```bash
-sam delete --stack-name "sam-app"
-```
-
-## Resources
-
-See the [AWS SAM developer guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html) for an introduction to SAM specification, the SAM CLI, and serverless application concepts.
-
-Next, you can use AWS Serverless Application Repository to deploy ready to use Apps that go beyond hello world samples and learn how authors developed their applications: [AWS Serverless Application Repository main page](https://aws.amazon.com/serverless/serverlessrepo/)

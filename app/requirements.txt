@@ -1,7 +1,0 @@
-requests
-beautifulsoup4
-pytest
-boto3
-pydantic
-feedparser
-python-dotenv
