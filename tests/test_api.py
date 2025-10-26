@@ -108,11 +108,51 @@ def api_client(api_server):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def setup_test_environment():
-    """テスト環境のセットアップ"""
-    # 実際のテストでは別のデータベースを使用することを推奨
-    yield
-    # テスト後のクリーンアップ（必要に応じて）
+def setup_test_environment(api_client):
+    """テスト環境のセットアップとクリーンアップ"""
+    # テスト開始前の準備
+    created_test_data = {
+        "webhooks": [],
+        "websites": []
+    }
+    
+    yield created_test_data
+    
+    # テスト終了後のクリーンアップ
+    print("Cleaning up test data...")
+    cleanup_test_data(api_client, created_test_data)
+
+
+def cleanup_test_data(api_client, created_test_data):
+    """テスト用データをクリーンアップ"""
+    try:
+        # テスト用Webhookを削除
+        response = api_client.get("/webhooks")
+        if response.status_code == 200:
+            webhooks = response.json()
+            for webhook in webhooks:
+                if any(test_name in webhook["name"] for test_name in [
+                    "Test Teams Webhook", "Duplicate Test Webhook", 
+                    "Invalid Service Webhook", "Consistency Test Webhook"
+                ]):
+                    api_client.delete(f"/webhooks/{webhook['id']}")
+                    print(f"Deleted test webhook: {webhook['name']}")
+        
+        # テスト用Websiteを削除
+        response = api_client.get("/websites")
+        if response.status_code == 200:
+            websites = response.json()
+            for website in websites:
+                if any(test_name in website["name"] for test_name in [
+                    "Test RSS Site", "Test Scraping Site", "CRUD Test Site"
+                ]):
+                    api_client.delete(f"/websites/{website['id']}")
+                    print(f"Deleted test website: {website['name']}")
+                    
+        print("✅ Test data cleanup completed")
+        
+    except Exception as e:
+        print(f"⚠️ Error during cleanup: {e}")
 
 
 class TestBasicEndpoints:
@@ -152,6 +192,18 @@ class TestBasicEndpoints:
 
 class TestWebhookAPI:
     """Webhook API のテスト"""
+    
+    @pytest.fixture(autouse=True)
+    def setup_webhook_test(self, api_client):
+        """各Webhookテストのセットアップとクリーンアップ"""
+        self.created_webhooks = []
+        yield
+        # テスト終了後にこのテストで作成したWebhookを削除
+        for webhook_id in self.created_webhooks:
+            try:
+                api_client.delete(f"/webhooks/{webhook_id}")
+            except:
+                pass  # 削除に失敗しても続行
 
     def test_get_all_webhooks(self, api_client):
         """全Webhook取得のテスト"""
@@ -197,8 +249,9 @@ class TestWebhookAPI:
     def test_create_webhook(self, api_client):
         """Webhook作成のテスト"""
         unique_id = str(uuid.uuid4())[:8]
+        webhook_name = f"Test Teams Webhook {unique_id}"
         webhook_data = {
-            "name": f"Test Teams Webhook {unique_id}",
+            "name": webhook_name,
             "endpoint": f"https://outlook.office.com/webhook/test{unique_id}",
             "service_type": "teams"
         }
@@ -209,12 +262,22 @@ class TestWebhookAPI:
         data = response.json()
         assert data["success"] is True
         assert "成功" in data["message"]
+        
+        # 作成されたWebhookのIDを取得して記録
+        webhooks_response = api_client.get("/webhooks")
+        if webhooks_response.status_code == 200:
+            webhooks = webhooks_response.json()
+            for webhook in webhooks:
+                if webhook["name"] == webhook_name:
+                    self.created_webhooks.append(webhook["id"])
+                    break
 
     def test_create_duplicate_webhook(self, api_client):
         """重複Webhook作成のテスト"""
         unique_id = str(uuid.uuid4())[:8]
+        webhook_name = f"Duplicate Test Webhook {unique_id}"
         webhook_data = {
-            "name": f"Duplicate Test Webhook {unique_id}",
+            "name": webhook_name,
             "endpoint": f"https://example.com/webhook/test{unique_id}",
             "service_type": "discord"
         }
@@ -222,6 +285,15 @@ class TestWebhookAPI:
         # 最初の作成
         response1 = api_client.post("/webhooks", webhook_data)
         assert response1.status_code == 200
+        
+        # 作成されたWebhookのIDを記録
+        webhooks_response = api_client.get("/webhooks")
+        if webhooks_response.status_code == 200:
+            webhooks = webhooks_response.json()
+            for webhook in webhooks:
+                if webhook["name"] == webhook_name:
+                    self.created_webhooks.append(webhook["id"])
+                    break
 
         # 同じ名前で再度作成（重複）
         response2 = api_client.post("/webhooks", webhook_data)
@@ -255,6 +327,18 @@ class TestWebhookAPI:
 
 class TestWebsiteAPI:
     """Website API のテスト"""
+    
+    @pytest.fixture(autouse=True)
+    def setup_website_test(self, api_client):
+        """各Websiteテストのセットアップとクリーンアップ"""
+        self.created_websites = []
+        yield
+        # テスト終了後にこのテストで作成したWebsiteを削除
+        for website_id in self.created_websites:
+            try:
+                api_client.delete(f"/websites/{website_id}")
+            except:
+                pass  # 削除に失敗しても続行
 
     def test_get_all_websites(self, api_client):
         """全Website取得のテスト"""
@@ -300,8 +384,9 @@ class TestWebsiteAPI:
     def test_create_rss_website(self, api_client):
         """RSSサイト作成のテスト"""
         unique_id = str(uuid.uuid4())[:8]
+        website_name = f"Test RSS Site {unique_id}"
         website_data = {
-            "name": f"Test RSS Site {unique_id}",
+            "name": website_name,
             "type": "rss",
             "url": f"https://example.com/feed{unique_id}.xml",
             "avatar": "https://example.com/icon.png",
@@ -314,12 +399,22 @@ class TestWebsiteAPI:
         data = response.json()
         assert data["success"] is True
         assert "成功" in data["message"]
+        
+        # 作成されたWebsiteのIDを取得して記録
+        websites_response = api_client.get("/websites")
+        if websites_response.status_code == 200:
+            websites = websites_response.json()
+            for website in websites:
+                if website["name"] == website_name:
+                    self.created_websites.append(website["id"])
+                    break
 
     def test_create_scraping_website(self, api_client):
         """スクレイピングサイト作成のテスト"""
         unique_id = str(uuid.uuid4())[:8]
+        website_name = f"Test Scraping Site {unique_id}"
         website_data = {
-            "name": f"Test Scraping Site {unique_id}",
+            "name": website_name,
             "type": "scraping",
             "url": f"https://example.com/news{unique_id}/",
             "selector": "article h2 a",
@@ -333,6 +428,15 @@ class TestWebsiteAPI:
         data = response.json()
         assert data["success"] is True
         assert "成功" in data["message"]
+        
+        # 作成されたWebsiteのIDを取得して記録
+        websites_response = api_client.get("/websites")
+        if websites_response.status_code == 200:
+            websites = websites_response.json()
+            for website in websites:
+                if website["name"] == website_name:
+                    self.created_websites.append(website["id"])
+                    break
 
     def test_delete_website(self, api_client):
         """Website削除のテスト"""
@@ -405,6 +509,24 @@ class TestErrorHandling:
 
 class TestDataConsistency:
     """データ整合性のテスト"""
+    
+    @pytest.fixture(autouse=True)
+    def setup_consistency_test(self, api_client):
+        """各整合性テストのセットアップとクリーンアップ"""
+        self.created_webhooks = []
+        self.created_websites = []
+        yield
+        # テスト終了後にこのテストで作成したデータを削除
+        for webhook_id in self.created_webhooks:
+            try:
+                api_client.delete(f"/webhooks/{webhook_id}")
+            except:
+                pass
+        for website_id in self.created_websites:
+            try:
+                api_client.delete(f"/websites/{website_id}")
+            except:
+                pass
 
     def test_stats_consistency_after_operations(self, api_client):
         """操作後の統計情報整合性テスト"""
@@ -414,12 +536,23 @@ class TestDataConsistency:
 
         # Webhook作成
         unique_id = str(uuid.uuid4())[:8]
+        webhook_name = f"Consistency Test Webhook {unique_id}"
         webhook_data = {
-            "name": f"Consistency Test Webhook {unique_id}",
+            "name": webhook_name,
             "endpoint": f"https://example.com/consistency-test{unique_id}",
             "service_type": "discord"
         }
-        api_client.post("/webhooks", webhook_data)
+        response = api_client.post("/webhooks", webhook_data)
+        assert response.status_code == 200
+        
+        # 作成されたWebhookのIDを記録
+        webhooks_response = api_client.get("/webhooks")
+        if webhooks_response.status_code == 200:
+            webhooks = webhooks_response.json()
+            for webhook in webhooks:
+                if webhook["name"] == webhook_name:
+                    self.created_webhooks.append(webhook["id"])
+                    break
 
         # 統計情報を再取得
         response = api_client.get("/stats")
