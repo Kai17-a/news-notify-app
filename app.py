@@ -250,7 +250,8 @@ class Website(BaseModel):
     avatar: str | None = None
     selector: str | None = None  # スクレイピング用セレクタ
     is_active: bool = True
-    needs_translation: bool = False  # 翻訳が必要かのフラグ
+    needs_translation: bool = False  # 翻訳が必要かのフラグ,
+    target_webhook_ids: str | None = None
     created_at: str | None = None
 
     def fetch_articles(self) -> list[Article]:
@@ -317,6 +318,7 @@ class ArticleDatabase:
                         selector TEXT,
                         is_active BOOLEAN DEFAULT 1,
                         needs_translation BOOLEAN DEFAULT 0,
+                        target_webhook_ids TEXT,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
@@ -512,8 +514,8 @@ class ArticleDatabase:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    INSERT INTO websites (name, type, url, avatar, selector, is_active, needs_translation)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO websites (name, type, url, avatar, selector, is_active, needs_translation, target_webhook_ids)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     website.name, 
                     website.type, 
@@ -521,7 +523,8 @@ class ArticleDatabase:
                     website.avatar, 
                     website.selector,
                     website.is_active,
-                    website.needs_translation
+                    website.needs_translation,
+                    website.target_webhook_ids
                 ))
                 conn.commit()
                 logger.info(f"Website追加: {website.name} ({website.type})")
@@ -539,7 +542,7 @@ class ArticleDatabase:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    SELECT id, name, type, url, avatar, selector, is_active, needs_translation, created_at
+                    SELECT id, name, type, url, avatar, selector, is_active, needs_translation, target_webhook_ids, created_at
                     FROM websites 
                     WHERE is_active = 1
                     ORDER BY created_at
@@ -556,7 +559,8 @@ class ArticleDatabase:
                         selector=row[5],
                         is_active=bool(row[6]),
                         needs_translation=bool(row[7]),
-                        created_at=row[8]
+                        target_webhook_ids=row[8],
+                        created_at=row[9]
                     )
                     websites.append(website)
                 
@@ -678,6 +682,7 @@ def create_website_instance(website: Website) -> Website:
             selector=website.selector,
             is_active=website.is_active,
             needs_translation=website.needs_translation,
+            target_webhook_ids=website.target_webhook_ids,
             created_at=website.created_at
         )
     elif website.type == "scraping":
@@ -690,6 +695,7 @@ def create_website_instance(website: Website) -> Website:
             selector=website.selector,
             is_active=website.is_active,
             needs_translation=website.needs_translation,
+            target_webhook_ids=website.target_webhook_ids,
             created_at=website.created_at
         )
     else:
@@ -711,6 +717,30 @@ def create_notification_service(webhook: Webhook) -> NotificationService:
     return service_class(webhook)
 
 
+def _send_to_webhook(webhook: Webhook, website: "Website", articles: list[Article]) -> bool:
+    """単一のWebhookに通知を送信"""
+    try:
+        service = create_notification_service(webhook)
+        return service.send_notification(website, articles)
+    except ValueError as e:
+        logger.error(f"サービス作成エラー [{webhook.name}]: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"投稿エラー [{webhook.name}]: {e}")
+        return False
+
+
+def _get_target_webhooks(webhooks: list[Webhook], website: "Website") -> list[Webhook]:
+    """対象となるWebhookリストを取得"""
+    if not hasattr(website, 'target_webhook_ids') or not website.target_webhook_ids:
+        # target_webhook_ids が設定されていない場合、全てのWebhookが対象
+        return webhooks
+    
+    # target_webhook_ids が設定されている場合、指定されたIDのWebhookのみ
+    target_ids = [id.strip() for id in website.target_webhook_ids.split(",") if id.strip()]
+    return [webhook for webhook in webhooks if str(webhook.id) in target_ids]
+
+
 def post_message(website: "Website", articles: list[Article]) -> bool:
     """全てのアクティブなWebhookに記事を投稿"""
     if not articles:
@@ -718,29 +748,27 @@ def post_message(website: "Website", articles: list[Article]) -> bool:
         return True
     
     # アクティブなWebhookを取得
-    webhooks = db.get_active_webhooks()
-    if not webhooks:
+    all_webhooks = db.get_active_webhooks()
+    if not all_webhooks:
         logger.error("投稿先のWebhookが設定されていません")
         return False
     
-    success_count = 0
-    total_webhooks = len(webhooks)
+    # 対象となるWebhookを絞り込み
+    target_webhooks = _get_target_webhooks(all_webhooks, website)
+    if not target_webhooks:
+        logger.warning(f"対象となるWebhookが見つかりません: {website.name}")
+        return False
     
-    # 各Webhookに投稿
-    for webhook in webhooks:
-        try:
-            service = create_notification_service(webhook)
-            if service.send_notification(website, articles):
-                success_count += 1
-        except ValueError as e:
-            logger.error(f"サービス作成エラー [{webhook.name}]: {e}")
-        except Exception as e:
-            logger.error(f"投稿エラー [{webhook.name}]: {e}")
+    # 各Webhookに並行して通知送信
+    success_count = 0
+    for webhook in target_webhooks:
+        if _send_to_webhook(webhook, website, articles):
+            success_count += 1
     
     # 投稿成功後、記事をデータベースに保存
     if success_count > 0:
         saved_count = db.save_articles(articles, website.name)
-        logger.info(f"投稿完了: {website.name} ({success_count}/{total_webhooks} Webhook成功, {saved_count}件DB保存)")
+        logger.info(f"投稿完了: {website.name} ({success_count}/{len(target_webhooks)} Webhook成功, {saved_count}件DB保存)")
         return True
     else:
         logger.error(f"全てのWebhookで投稿に失敗: {website.name}")

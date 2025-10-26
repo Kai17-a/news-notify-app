@@ -36,6 +36,7 @@ class WebsiteResponse(BaseModel):
     selector: Optional[str]
     is_active: bool
     needs_translation: bool
+    target_webhook_ids: str | None
     created_at: str
 
 class WebhookCreate(BaseModel):
@@ -58,6 +59,7 @@ class WebsiteCreate(BaseModel):
     selector: Optional[str] = None
     is_active: bool = True
     needs_translation: bool = False
+    target_webhook_ids: str | None = None
 
 class WebsiteUpdate(BaseModel):
     name: Optional[str] = None
@@ -228,6 +230,7 @@ async def get_websites():
                 selector=website.selector,
                 is_active=website.is_active,
                 needs_translation=website.needs_translation,
+                target_webhook_ids=website.target_webhook_ids,
                 created_at=website.created_at or ""
             )
             for website in websites
@@ -260,6 +263,7 @@ async def get_website(website_id: int):
             selector=website.selector,
             is_active=website.is_active,
             needs_translation=website.needs_translation,
+            target_webhook_ids=website.target_webhook_ids,
             created_at=website.created_at or ""
         )
     except HTTPException:
@@ -281,7 +285,8 @@ async def create_website(website_data: WebsiteCreate):
             avatar=website_data.avatar,
             selector=website_data.selector,
             is_active=website_data.is_active,
-            needs_translation=website_data.needs_translation
+            needs_translation=website_data.needs_translation,
+            target_webhook_ids=website_data.target_webhook_ids
         )
         
         if db.add_website(website):
