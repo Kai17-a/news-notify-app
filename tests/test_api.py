@@ -115,9 +115,9 @@ def setup_test_environment(api_client):
         "webhooks": [],
         "websites": []
     }
-    
+
     yield created_test_data
-    
+
     # テスト終了後のクリーンアップ
     print("Cleaning up test data...")
     cleanup_test_data(api_client, created_test_data)
@@ -132,12 +132,12 @@ def cleanup_test_data(api_client, created_test_data):
             webhooks = response.json()
             for webhook in webhooks:
                 if any(test_name in webhook["name"] for test_name in [
-                    "Test Teams Webhook", "Duplicate Test Webhook", 
+                    "Test Teams Webhook", "Duplicate Test Webhook",
                     "Invalid Service Webhook", "Consistency Test Webhook"
                 ]):
                     api_client.delete(f"/webhooks/{webhook['id']}")
                     print(f"Deleted test webhook: {webhook['name']}")
-        
+
         # テスト用Websiteを削除
         response = api_client.get("/websites")
         if response.status_code == 200:
@@ -148,9 +148,9 @@ def cleanup_test_data(api_client, created_test_data):
                 ]):
                     api_client.delete(f"/websites/{website['id']}")
                     print(f"Deleted test website: {website['name']}")
-                    
+
         print("✅ Test data cleanup completed")
-        
+
     except Exception as e:
         print(f"⚠️ Error during cleanup: {e}")
 
@@ -192,7 +192,7 @@ class TestBasicEndpoints:
 
 class TestWebhookAPI:
     """Webhook API のテスト"""
-    
+
     @pytest.fixture(autouse=True)
     def setup_webhook_test(self, api_client):
         """各Webhookテストのセットアップとクリーンアップ"""
@@ -262,7 +262,7 @@ class TestWebhookAPI:
         data = response.json()
         assert data["success"] is True
         assert "成功" in data["message"]
-        
+
         # 作成されたWebhookのIDを取得して記録
         webhooks_response = api_client.get("/webhooks")
         if webhooks_response.status_code == 200:
@@ -285,7 +285,7 @@ class TestWebhookAPI:
         # 最初の作成
         response1 = api_client.post("/webhooks", webhook_data)
         assert response1.status_code == 200
-        
+
         # 作成されたWebhookのIDを記録
         webhooks_response = api_client.get("/webhooks")
         if webhooks_response.status_code == 200:
@@ -327,7 +327,7 @@ class TestWebhookAPI:
 
 class TestWebsiteAPI:
     """Website API のテスト"""
-    
+
     @pytest.fixture(autouse=True)
     def setup_website_test(self, api_client):
         """各Websiteテストのセットアップとクリーンアップ"""
@@ -399,7 +399,7 @@ class TestWebsiteAPI:
         data = response.json()
         assert data["success"] is True
         assert "成功" in data["message"]
-        
+
         # 作成されたWebsiteのIDを取得して記録
         websites_response = api_client.get("/websites")
         if websites_response.status_code == 200:
@@ -428,7 +428,7 @@ class TestWebsiteAPI:
         data = response.json()
         assert data["success"] is True
         assert "成功" in data["message"]
-        
+
         # 作成されたWebsiteのIDを取得して記録
         websites_response = api_client.get("/websites")
         if websites_response.status_code == 200:
@@ -509,7 +509,7 @@ class TestErrorHandling:
 
 class TestDataConsistency:
     """データ整合性のテスト"""
-    
+
     @pytest.fixture(autouse=True)
     def setup_consistency_test(self, api_client):
         """各整合性テストのセットアップとクリーンアップ"""
@@ -544,7 +544,7 @@ class TestDataConsistency:
         }
         response = api_client.post("/webhooks", webhook_data)
         assert response.status_code == 200
-        
+
         # 作成されたWebhookのIDを記録
         webhooks_response = api_client.get("/webhooks")
         if webhooks_response.status_code == 200:
