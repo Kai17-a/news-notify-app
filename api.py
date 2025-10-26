@@ -8,7 +8,6 @@ import uvicorn
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from typing import List, Optional
 from app import db, Webhook, Website, ArticleDatabase
 
 # FastAPIアプリケーション
@@ -32,8 +31,8 @@ class WebsiteResponse(BaseModel):
     name: str
     type: str
     url: str
-    avatar: Optional[str]
-    selector: Optional[str]
+    avatar: str | None
+    selector: str | None
     is_active: bool
     needs_translation: bool
     target_webhook_ids: str | None
@@ -46,29 +45,29 @@ class WebhookCreate(BaseModel):
     is_active: bool = True
 
 class WebhookUpdate(BaseModel):
-    name: Optional[str] = None
-    endpoint: Optional[str] = None
-    service_type: Optional[str] = None
-    is_active: Optional[bool] = None
+    name: str | None = None
+    endpoint: str | None = None
+    service_type: str | None = None
+    is_active: bool | None = None
 
 class WebsiteCreate(BaseModel):
     name: str
     type: str
     url: str
-    avatar: Optional[str] = None
-    selector: Optional[str] = None
+    avatar: str | None = None
+    selector: str | None = None
     is_active: bool = True
     needs_translation: bool = False
     target_webhook_ids: str | None = None
 
 class WebsiteUpdate(BaseModel):
-    name: Optional[str] = None
-    type: Optional[str] = None
-    url: Optional[str] = None
-    avatar: Optional[str] = None
-    selector: Optional[str] = None
-    is_active: Optional[bool] = None
-    needs_translation: Optional[bool] = None
+    name: str | None = None
+    type: str | None = None
+    url: str | None = None
+    avatar: str | None = None
+    selector: str | None = None
+    is_active: bool | None = None
+    needs_translation: bool | None = None
 
 class StatusResponse(BaseModel):
     message: str
@@ -84,7 +83,7 @@ async def health_check():
     return {"status": "healthy", "database": "connected"}
 
 # Webhook API
-@app.get("/webhooks", response_model=List[WebhookResponse])
+@app.get("/webhooks", response_model=list[WebhookResponse])
 async def get_webhooks():
     """全てのWebhookを取得"""
     try:
@@ -215,7 +214,7 @@ async def delete_webhook(webhook_id: int):
         )
 
 # Website API
-@app.get("/websites", response_model=List[WebsiteResponse])
+@app.get("/websites", response_model=list[WebsiteResponse])
 async def get_websites():
     """全てのWebsiteを取得"""
     try:
