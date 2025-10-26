@@ -27,7 +27,7 @@ app-once = "app:run_once"
 api = "api:run_api"
 test = "scripts.test:run_all_tests"
 test-api = "scripts.test:run_api_tests"
-setup-hooks = "scripts.setup_hooks:setup_pre_commit"
+setup-hooks = "scripts.setup_hooks:setup_pre_push"
 
 [build-system]
 requires = ["hatchling"]

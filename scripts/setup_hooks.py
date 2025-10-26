@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Pre-commitフックのセットアップスクリプト
+Pre-pushフックのセットアップスクリプト
 """
 
 import subprocess
 import sys
 
 
-def setup_pre_commit():
+def setup_pre_push():
     """Pre-pushフックをセットアップ"""
     try:
         # pre-pushフックをインストール
@@ -38,5 +38,5 @@ def setup_pre_commit():
 
 
 if __name__ == "__main__":
-    success = setup_pre_commit()
+    success = setup_pre_push()
     sys.exit(0 if success else 1)
