@@ -8,29 +8,29 @@ import sys
 
 
 def setup_pre_commit():
-    """Pre-commitフックをセットアップ"""
+    """Pre-pushフックをセットアップ"""
     try:
-        # pre-commitをインストール
-        print("Installing pre-commit hooks...")
-        subprocess.run(["uv", "run", "pre-commit", "install"], check=True)
-        print("✅ Pre-commit hooks installed successfully!")
+        # pre-pushフックをインストール
+        print("Installing pre-push hooks...")
+        subprocess.run(["uv", "run", "pre-commit", "install", "--hook-type", "pre-push"], check=True)
+        print("✅ Pre-push hooks installed successfully!")
 
         # 初回実行でフックをテスト
-        print("Running pre-commit on all files...")
-        result = subprocess.run(["uv", "run", "pre-commit", "run", "--all-files"],
+        print("Running pre-push hooks on all files...")
+        result = subprocess.run(["uv", "run", "pre-commit", "run", "--all-files", "--hook-stage", "pre-push"],
                               capture_output=True, text=True)
 
         if result.returncode == 0:
-            print("✅ All pre-commit checks passed!")
+            print("✅ All pre-push checks passed!")
         else:
-            print("⚠️  Some pre-commit checks failed, but hooks are installed.")
+            print("⚠️  Some pre-push checks failed, but hooks are installed.")
             print("Output:", result.stdout)
             print("Errors:", result.stderr)
 
         return True
 
     except subprocess.CalledProcessError as e:
-        print(f"❌ Error setting up pre-commit: {e}")
+        print(f"❌ Error setting up pre-push hooks: {e}")
         return False
     except FileNotFoundError:
         print("❌ uv or pre-commit not found. Please install uv first.")

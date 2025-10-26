@@ -7,12 +7,12 @@
 uv sync
 ```
 
-### 2. Pre-commitフックのセットアップ
+### 2. Pre-pushフックのセットアップ
 ```bash
 uv run setup-hooks
 ```
 
-これにより、コミット前に自動的にテストが実行されます。
+これにより、プッシュ前に自動的にテストが実行されます。
 
 ## テスト実行
 
@@ -50,8 +50,8 @@ uv run api
 
 ## Git ワークフロー
 
-### Pre-commitフック
-コミット前に以下が自動実行されます：
+### Pre-pushフック
+プッシュ前に以下が自動実行されます：
 - 全テストの実行
 - Python構文チェック
 - コードフォーマットチェック
@@ -60,14 +60,14 @@ uv run api
 
 ## トラブルシューティング
 
-### Pre-commitフックをスキップしたい場合
+### Pre-pushフックをスキップしたい場合
 ```bash
-git commit --no-verify -m "commit message"
+git push --no-verify
 ```
 
-### Pre-commitフックを再インストール
+### Pre-pushフックを再インストール
 ```bash
-uv run pre-commit uninstall
+uv run pre-commit uninstall --hook-type pre-push
 uv run setup-hooks
 ```
 
