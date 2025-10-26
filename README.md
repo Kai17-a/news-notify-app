@@ -8,12 +8,10 @@
 - 重複記事の自動検出・除外
 - 複数通知サービス対応（Discord、Slack、Microsoft Teams）
 - SQLiteによるデータ管理
-- 並行処理による高速化
 
-## 必要な環境
+## 環境
 
 - Python 3.13+
-- 必要なライブラリ（requirements.txtを参照）
 
 ## インストール
 
