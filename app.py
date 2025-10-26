@@ -214,26 +214,37 @@ class TeamsService(NotificationService):
     """Microsoft Teams通知サービス"""
 
     def create_payload(self, website: "Website", articles: list[Article]) -> dict[str, Any]:
-        """Teams用のペイロードを作成"""
-        facts = []
-        for i, article in enumerate(articles, 1):
-            facts.append({
-                "name": f"記事 {i}",
-                "value": f"[{article.title}]({article.url})"
+        """Teams用のペイロードを作成（Adaptive Cards形式）"""
+        content_body = [
+            {
+                "type": "TextBlock",
+                "text": f"{website.name} - 新着ニュース",
+                "weight": "Bolder",
+                "size": "Medium",
+                "wrap": True,
+            }
+        ]
+        
+        for article in articles:
+            content_body.append({
+                "type": "TextBlock",
+                "text": f"- [{article.title}]({article.url})",
+                "wrap": True,
+                "markdown": True,
             })
 
         return {
-            "@type": "MessageCard",
-            "@context": "http://schema.org/extensions",
-            "themeColor": "0076D7",
-            "summary": f"{website.name} - 新着ニュース",
-            "sections": [{
-                "activityTitle": f"📰 {website.name}",
-                "activitySubtitle": f"新着ニュース ({len(articles)}件)",
-                "activityImage": website.avatar,
-                "facts": facts,
-                "markdown": True
-            }]
+            "attachments": [
+                {
+                    "contentType": "application/vnd.microsoft.card.adaptive",
+                    "content": {
+                        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                        "type": "AdaptiveCard",
+                        "version": "1.2",
+                        "body": content_body,
+                    },
+                }
+            ]
         }
 
     def get_headers(self) -> dict[str, str]:
