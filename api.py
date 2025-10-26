@@ -111,13 +111,13 @@ async def get_webhook(webhook_id: int):
     try:
         webhooks = db.get_active_webhooks()
         webhook = next((w for w in webhooks if w.id == webhook_id), None)
-        
+
         if not webhook:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Webhookが見つかりません"
             )
-        
+
         return WebhookResponse(
             id=webhook.id,
             name=webhook.name,
@@ -144,7 +144,7 @@ async def create_webhook(webhook_data: WebhookCreate):
             service_type=webhook_data.service_type,
             is_active=webhook_data.is_active
         )
-        
+
         if db.add_webhook(webhook):
             return StatusResponse(message="Webhook作成成功", success=True)
         else:
@@ -167,13 +167,13 @@ async def update_webhook(webhook_id: int, webhook_data: WebhookUpdate):
         # 現在のWebhookを取得
         webhooks = db.get_active_webhooks()
         current_webhook = next((w for w in webhooks if w.id == webhook_id), None)
-        
+
         if not current_webhook:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Webhookが見つかりません"
             )
-        
+
         # is_activeの更新のみサポート（他のフィールドは削除して再作成が必要）
         if webhook_data.is_active is not None:
             if db.update_webhook_status(webhook_id, webhook_data.is_active):
@@ -185,7 +185,7 @@ async def update_webhook(webhook_id: int, webhook_data: WebhookUpdate):
                 )
         else:
             return StatusResponse(message="更新項目がありません", success=True)
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -246,13 +246,13 @@ async def get_website(website_id: int):
     try:
         websites = db.get_active_websites()
         website = next((w for w in websites if w.id == website_id), None)
-        
+
         if not website:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Websiteが見つかりません"
             )
-        
+
         return WebsiteResponse(
             id=website.id,
             name=website.name,
@@ -287,7 +287,7 @@ async def create_website(website_data: WebsiteCreate):
             needs_translation=website_data.needs_translation,
             target_webhook_ids=website_data.target_webhook_ids
         )
-        
+
         if db.add_website(website):
             return StatusResponse(message="Website作成成功", success=True)
         else:
@@ -310,13 +310,13 @@ async def update_website(website_id: int, website_data: WebsiteUpdate):
         # 現在のWebsiteを取得
         websites = db.get_active_websites()
         current_website = next((w for w in websites if w.id == website_id), None)
-        
+
         if not current_website:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Websiteが見つかりません"
             )
-        
+
         # is_activeの更新のみサポート（他のフィールドは削除して再作成が必要）
         if website_data.is_active is not None:
             if db.update_website_status(website_id, website_data.is_active):
@@ -328,7 +328,7 @@ async def update_website(website_id: int, website_data: WebsiteUpdate):
                 )
         else:
             return StatusResponse(message="更新項目がありません", success=True)
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -364,7 +364,7 @@ async def get_stats():
         total_articles = db.get_article_count()
         webhook_count = len(db.get_active_webhooks())
         website_count = len(db.get_active_websites())
-        
+
         return {
             "total_articles": total_articles,
             "active_webhooks": webhook_count,

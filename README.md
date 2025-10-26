@@ -296,4 +296,3 @@ website = Website(
 - MyMemory Translation APIを使用（無料）
 - 既に日本語が含まれている場合は翻訳をスキップ
 - オリジナルタイトルは保持され、重複チェックに使用
-

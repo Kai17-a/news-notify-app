@@ -29,28 +29,28 @@ def translate_to_japanese(text: str) -> str:
     """テキストを日本語に翻訳"""
     if not text or not text.strip():
         return text
-    
+
     # 既に日本語が含まれている場合はそのまま返す
     if any('\u3040' <= char <= '\u309F' or '\u30A0' <= char <= '\u30FF' or '\u4E00' <= char <= '\u9FAF' for char in text):
         logger.debug(f"日本語が含まれているため翻訳をスキップ: {text[:50]}...")
         return text
-    
+
     try:
         params = {
             'q': text,
             'langpair': 'en|ja',
             'de': 'your-email@example.com'  # MyMemory APIでは任意のメールアドレスを指定
         }
-        
+
         response = requests.get(
             TRANSLATION_API_URL,
             params=params,
             timeout=REQUEST_TIMEOUT
         )
         response.raise_for_status()
-        
+
         data = response.json()
-        
+
         if data.get('responseStatus') == 200:
             translated_text = data.get('responseData', {}).get('translatedText', text)
             logger.info(f"翻訳成功: {text[:30]}... → {translated_text[:30]}...")
@@ -58,7 +58,7 @@ def translate_to_japanese(text: str) -> str:
         else:
             logger.warning(f"翻訳API応答エラー: {data.get('responseDetails', 'Unknown error')}")
             return text
-            
+
     except requests.RequestException as e:
         logger.error(f"翻訳APIリクエストエラー: {e}")
         return text
@@ -76,14 +76,14 @@ class Article(BaseModel):
     def to_embed_dict(self) -> dict[str, str]:
         """Discord埋め込み用の辞書に変換"""
         return {"title": self.title, "url": self.url}
-    
+
     def get_hash(self) -> str:
         """記事のハッシュ値を生成（重複チェック用）"""
         # ハッシュ値はオリジナルタイトルで生成（翻訳による重複を防ぐ）
         original_title = self.original_title or self.title
         content = f"{original_title}|{self.url}"
         return hashlib.md5(content.encode('utf-8')).hexdigest()
-    
+
     def translate_title(self) -> "Article":
         """タイトルを日本語に翻訳した新しいArticleインスタンスを返す"""
         if not self.original_title:
@@ -111,30 +111,30 @@ class Webhook(BaseModel):
 
 class NotificationService(ABC):
     """通知サービスの基底クラス"""
-    
+
     def __init__(self, webhook: Webhook):
         self.webhook = webhook
-    
+
     @abstractmethod
     def create_payload(self, website: "Website", articles: list[Article]) -> dict[str, Any]:
         """サービス固有のペイロードを作成"""
         pass
-    
+
     @abstractmethod
     def get_headers(self) -> dict[str, str]:
         """サービス固有のヘッダーを取得"""
         pass
-    
+
     def send_notification(self, website: "Website", articles: list[Article]) -> bool:
         """通知を送信"""
         if not articles:
             logger.info(f"投稿する記事がありません: {website.name} -> {self.webhook.name}")
             return True
-        
+
         try:
             payload = self.create_payload(website, articles)
             headers = self.get_headers()
-            
+
             response = requests.post(
                 self.webhook.endpoint,
                 json=payload,
@@ -142,10 +142,10 @@ class NotificationService(ABC):
                 timeout=REQUEST_TIMEOUT
             )
             response.raise_for_status()
-            
+
             logger.info(f"{self.webhook.service_type}投稿成功: {website.name} -> {self.webhook.name} ({len(articles)}件)")
             return True
-            
+
         except requests.RequestException as e:
             logger.error(f"{self.webhook.service_type}投稿エラー [{website.name} -> {self.webhook.name}]: {e}")
             return False
@@ -156,18 +156,18 @@ class NotificationService(ABC):
 
 class DiscordService(NotificationService):
     """Discord通知サービス"""
-    
+
     def create_payload(self, website: "Website", articles: list[Article]) -> dict[str, Any]:
         """Discord用のペイロードを作成"""
         embeds = [article.to_embed_dict() for article in articles]
-        
+
         return {
             "username": website.name,
             "avatar_url": website.avatar,
             "content": f"*新着ニュース* ({len(articles)}件)",
             "embeds": embeds,
         }
-    
+
     def get_headers(self) -> dict[str, str]:
         """Discord用のヘッダーを取得"""
         return {"Content-Type": "application/json"}
@@ -175,11 +175,11 @@ class DiscordService(NotificationService):
 
 class SlackService(NotificationService):
     """Slack通知サービス"""
-    
+
     def create_payload(self, website: "Website", articles: list[Article]) -> dict[str, Any]:
         """Slack用のペイロードを作成"""
         blocks = []
-        
+
         # ヘッダーブロック
         blocks.append({
             "type": "header",
@@ -188,7 +188,7 @@ class SlackService(NotificationService):
                 "text": f"📰 {website.name} - 新着ニュース ({len(articles)}件)"
             }
         })
-        
+
         # 記事リスト
         for article in articles:
             blocks.append({
@@ -198,13 +198,13 @@ class SlackService(NotificationService):
                     "text": f"• <{article.url}|{article.title}>"
                 }
             })
-        
+
         return {
             "username": website.name,
             "icon_url": website.avatar,
             "blocks": blocks
         }
-    
+
     def get_headers(self) -> dict[str, str]:
         """Slack用のヘッダーを取得"""
         return {"Content-Type": "application/json"}
@@ -212,7 +212,7 @@ class SlackService(NotificationService):
 
 class TeamsService(NotificationService):
     """Microsoft Teams通知サービス"""
-    
+
     def create_payload(self, website: "Website", articles: list[Article]) -> dict[str, Any]:
         """Teams用のペイロードを作成"""
         facts = []
@@ -221,7 +221,7 @@ class TeamsService(NotificationService):
                 "name": f"記事 {i}",
                 "value": f"[{article.title}]({article.url})"
             })
-        
+
         return {
             "@type": "MessageCard",
             "@context": "http://schema.org/extensions",
@@ -235,7 +235,7 @@ class TeamsService(NotificationService):
                 "markdown": True
             }]
         }
-    
+
     def get_headers(self) -> dict[str, str]:
         """Teams用のヘッダーを取得"""
         return {"Content-Type": "application/json"}
@@ -272,17 +272,17 @@ class Website(BaseModel):
 
 class ArticleDatabase:
     """記事データベース管理クラス"""
-    
+
     def __init__(self, db_path: str = DATABASE_PATH):
         self.db_path = db_path
         self._init_database()
-    
+
     def _init_database(self) -> None:
         """データベースとテーブルを初期化"""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                
+
                 # 記事テーブル
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS articles (
@@ -294,7 +294,7 @@ class ArticleDatabase:
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
-                
+
                 # Webhookテーブル
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS webhooks (
@@ -306,7 +306,7 @@ class ArticleDatabase:
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
-                
+
                 # Websiteテーブル
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS websites (
@@ -322,7 +322,7 @@ class ArticleDatabase:
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
-                
+
                 # インデックス作成
                 cursor.execute("""
                     CREATE INDEX IF NOT EXISTS idx_hash ON articles(hash)
@@ -339,13 +339,13 @@ class ArticleDatabase:
                 cursor.execute("""
                     CREATE INDEX IF NOT EXISTS idx_website_type ON websites(type)
                 """)
-                
+
                 conn.commit()
                 logger.info("データベース初期化完了")
         except sqlite3.Error as e:
             logger.error(f"データベース初期化エラー: {e}")
             raise
-    
+
     def is_article_exists(self, article: Article) -> bool:
         """記事が既に存在するかチェック"""
         try:
@@ -359,7 +359,7 @@ class ArticleDatabase:
         except sqlite3.Error as e:
             logger.error(f"記事存在チェックエラー: {e}")
             return False
-    
+
     def save_article(self, article: Article, site_name: str) -> bool:
         """記事をデータベースに保存"""
         try:
@@ -374,7 +374,7 @@ class ArticleDatabase:
         except sqlite3.Error as e:
             logger.error(f"記事保存エラー: {e}")
             return False
-    
+
     def save_articles(self, articles: list[Article], site_name: str) -> int:
         """複数の記事を一括保存"""
         saved_count = 0
@@ -392,7 +392,7 @@ class ArticleDatabase:
         except sqlite3.Error as e:
             logger.error(f"記事一括保存エラー: {e}")
         return saved_count
-    
+
     def filter_new_articles(self, articles: list[Article]) -> list[Article]:
         """新しい記事のみをフィルタリング"""
         new_articles = []
@@ -400,7 +400,7 @@ class ArticleDatabase:
             if not self.is_article_exists(article):
                 new_articles.append(article)
         return new_articles
-    
+
     def get_article_count(self, site_name: str | None = None) -> int:
         """記事数を取得"""
         try:
@@ -414,14 +414,14 @@ class ArticleDatabase:
         except sqlite3.Error as e:
             logger.error(f"記事数取得エラー: {e}")
             return 0
-    
+
     def cleanup_old_articles(self, days: int = 30) -> int:
         """古い記事を削除（デフォルト30日以上前）"""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute("""
-                    DELETE FROM articles 
+                    DELETE FROM articles
                     WHERE created_at < datetime('now', '-{} days')
                 """.format(days))
                 conn.commit()
@@ -431,7 +431,7 @@ class ArticleDatabase:
         except sqlite3.Error as e:
             logger.error(f"古い記事削除エラー: {e}")
             return 0
-    
+
     # Webhook管理メソッド
     def add_webhook(self, webhook: Webhook) -> bool:
         """Webhookを追加"""
@@ -451,7 +451,7 @@ class ArticleDatabase:
         except sqlite3.Error as e:
             logger.error(f"Webhook追加エラー: {e}")
             return False
-    
+
     def get_active_webhooks(self) -> list[Webhook]:
         """アクティブなWebhookを取得"""
         try:
@@ -459,11 +459,11 @@ class ArticleDatabase:
                 cursor = conn.cursor()
                 cursor.execute("""
                     SELECT id, name, endpoint, service_type, is_active, created_at
-                    FROM webhooks 
+                    FROM webhooks
                     WHERE is_active = 1
                     ORDER BY created_at
                 """)
-                
+
                 webhooks = []
                 for row in cursor.fetchall():
                     webhook = Webhook(
@@ -475,12 +475,12 @@ class ArticleDatabase:
                         created_at=row[5]
                     )
                     webhooks.append(webhook)
-                
+
                 return webhooks
         except sqlite3.Error as e:
             logger.error(f"Webhook取得エラー: {e}")
             return []
-    
+
     def update_webhook_status(self, webhook_id: int, is_active: bool) -> bool:
         """Webhookのアクティブ状態を更新"""
         try:
@@ -494,7 +494,7 @@ class ArticleDatabase:
         except sqlite3.Error as e:
             logger.error(f"Webhook状態更新エラー: {e}")
             return False
-    
+
     def delete_webhook(self, webhook_id: int) -> bool:
         """Webhookを削除"""
         try:
@@ -506,7 +506,7 @@ class ArticleDatabase:
         except sqlite3.Error as e:
             logger.error(f"Webhook削除エラー: {e}")
             return False
-    
+
     # Website管理メソッド
     def add_website(self, website: Website) -> bool:
         """Websiteを追加"""
@@ -517,10 +517,10 @@ class ArticleDatabase:
                     INSERT INTO websites (name, type, url, avatar, selector, is_active, needs_translation, target_webhook_ids)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    website.name, 
-                    website.type, 
-                    website.url, 
-                    website.avatar, 
+                    website.name,
+                    website.type,
+                    website.url,
+                    website.avatar,
                     website.selector,
                     website.is_active,
                     website.needs_translation,
@@ -535,7 +535,7 @@ class ArticleDatabase:
         except sqlite3.Error as e:
             logger.error(f"Website追加エラー: {e}")
             return False
-    
+
     def get_active_websites(self) -> list[Website]:
         """アクティブなWebsiteを取得"""
         try:
@@ -543,11 +543,11 @@ class ArticleDatabase:
                 cursor = conn.cursor()
                 cursor.execute("""
                     SELECT id, name, type, url, avatar, selector, is_active, needs_translation, target_webhook_ids, created_at
-                    FROM websites 
+                    FROM websites
                     WHERE is_active = 1
                     ORDER BY created_at
                 """)
-                
+
                 websites = []
                 for row in cursor.fetchall():
                     website = Website(
@@ -563,12 +563,12 @@ class ArticleDatabase:
                         created_at=row[9]
                     )
                     websites.append(website)
-                
+
                 return websites
         except sqlite3.Error as e:
             logger.error(f"Website取得エラー: {e}")
             return []
-    
+
     def update_website_status(self, website_id: int, is_active: bool) -> bool:
         """Websiteのアクティブ状態を更新"""
         try:
@@ -582,7 +582,7 @@ class ArticleDatabase:
         except sqlite3.Error as e:
             logger.error(f"Website状態更新エラー: {e}")
             return False
-    
+
     def delete_website(self, website_id: int) -> bool:
         """Websiteを削除"""
         try:
@@ -598,16 +598,16 @@ class ArticleDatabase:
 
 class RssSite(Website):
     """RSSフィードから記事を取得するサイト"""
-    
+
     def fetch_articles(self) -> list[Article]:
         """RSSフィードから記事を取得"""
         try:
             logger.info(f"RSSフィード取得開始: {self.name}")
             feed = feedparser.parse(self.url)
-            
+
             if feed.bozo:
                 logger.warning(f"RSSフィードの解析に問題があります: {self.name}")
-            
+
             articles = []
             for entry in feed.entries[:MAX_ARTICLES_PER_SITE]:
                 if hasattr(entry, 'title') and hasattr(entry, 'link'):
@@ -615,10 +615,10 @@ class RssSite(Website):
                     link = self._validate_url(entry.link)
                     if title and link:
                         articles.append(Article(title=title, url=link))
-            
+
             logger.info(f"RSS記事取得完了: {self.name} ({len(articles)}件)")
             return articles
-            
+
         except Exception as e:
             logger.error(f"RSS記事取得エラー [{self.name}]: {e}")
             return []
@@ -631,21 +631,21 @@ class ScrapingSite(Website):
         """Webスクレイピングで記事を取得"""
         try:
             logger.info(f"スクレイピング開始: {self.name}")
-            
+
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
-            
+
             response = requests.get(
-                self.url, 
-                headers=headers, 
+                self.url,
+                headers=headers,
                 timeout=REQUEST_TIMEOUT
             )
             response.raise_for_status()
-            
+
             soup = BeautifulSoup(response.text, "html.parser")
             anchors = soup.select(self.selector or "")
-            
+
             articles: list[Article] = []
             for anchor in anchors[:MAX_ARTICLES_PER_SITE]:
                 href = anchor.get("href")
@@ -654,10 +654,10 @@ class ScrapingSite(Website):
                     if title:
                         url = self._validate_url(href)
                         articles.append(Article(title=title, url=url))
-            
+
             logger.info(f"スクレイピング完了: {self.name} ({len(articles)}件)")
             return articles
-            
+
         except requests.RequestException as e:
             logger.error(f"HTTP リクエストエラー [{self.name}]: {e}")
             return []
@@ -709,11 +709,11 @@ def create_notification_service(webhook: Webhook) -> NotificationService:
         "slack": SlackService,
         "teams": TeamsService,
     }
-    
+
     service_class = service_map.get(webhook.service_type.lower())
     if not service_class:
         raise ValueError(f"サポートされていないサービスタイプ: {webhook.service_type}")
-    
+
     return service_class(webhook)
 
 
@@ -735,7 +735,7 @@ def _get_target_webhooks(webhooks: list[Webhook], website: "Website") -> list[We
     if not hasattr(website, 'target_webhook_ids') or not website.target_webhook_ids:
         # target_webhook_ids が設定されていない場合、全てのWebhookが対象
         return webhooks
-    
+
     # target_webhook_ids が設定されている場合、指定されたIDのWebhookのみ
     target_ids = [id.strip() for id in website.target_webhook_ids.split(",") if id.strip()]
     return [webhook for webhook in webhooks if str(webhook.id) in target_ids]
@@ -746,25 +746,25 @@ def post_message(website: "Website", articles: list[Article]) -> bool:
     if not articles:
         logger.info(f"投稿する記事がありません: {website.name}")
         return True
-    
+
     # アクティブなWebhookを取得
     all_webhooks = db.get_active_webhooks()
     if not all_webhooks:
         logger.error("投稿先のWebhookが設定されていません")
         return False
-    
+
     # 対象となるWebhookを絞り込み
     target_webhooks = _get_target_webhooks(all_webhooks, website)
     if not target_webhooks:
         logger.warning(f"対象となるWebhookが見つかりません: {website.name}")
         return False
-    
+
     # 各Webhookに並行して通知送信
     success_count = 0
     for webhook in target_webhooks:
         if _send_to_webhook(webhook, website, articles):
             success_count += 1
-    
+
     # 投稿成功後、記事をデータベースに保存
     if success_count > 0:
         saved_count = db.save_articles(articles, website.name)
@@ -778,11 +778,11 @@ def post_message(website: "Website", articles: list[Article]) -> bool:
 def get_news_website_list() -> list[Website]:
     """ニュースサイトのリストをデータベースから取得"""
     website_data_list = db.get_active_websites()
-    
+
     if not website_data_list:
         logger.warning("データベースにアクティブなWebsiteが見つかりません")
         return []
-    
+
     websites: list[Website] = []
     for website_data in website_data_list:
         try:
@@ -791,7 +791,7 @@ def get_news_website_list() -> list[Website]:
         except ValueError as e:
             logger.error(f"Website作成エラー: {e}")
             continue
-    
+
     logger.info(f"ニュースサイト数: {len(websites)}")
     return websites
 
@@ -800,21 +800,21 @@ def process_site(site: "Website") -> bool:
     """サイトの記事を処理してDiscordに投稿"""
     try:
         logger.info(f"サイト処理開始: {site.name}")
-        
+
         # 記事を取得
         all_articles = site.fetch_articles()
         if not all_articles:
             logger.info(f"取得記事なし: {site.name}")
             return True
-        
+
         # 新しい記事のみをフィルタリング
         new_articles = db.filter_new_articles(all_articles)
         if not new_articles:
             logger.info(f"新着記事なし: {site.name} (取得: {len(all_articles)}件, 既存: {len(all_articles)}件)")
             return True
-        
+
         logger.info(f"新着記事発見: {site.name} (取得: {len(all_articles)}件, 新着: {len(new_articles)}件)")
-        
+
         # 翻訳が必要な場合はタイトルを翻訳
         if site.needs_translation:
             logger.info(f"記事タイトルを翻訳中: {site.name}")
@@ -823,16 +823,16 @@ def process_site(site: "Website") -> bool:
                 translated_article = article.translate_title()
                 translated_articles.append(translated_article)
             new_articles = translated_articles
-        
+
         # 新しい記事のみを投稿
         success = post_message(site, new_articles)
         if success:
             logger.info(f"サイト処理完了: {site.name} ({len(new_articles)}件投稿)")
         else:
             logger.error(f"サイト処理失敗: {site.name}")
-        
+
         return success
-        
+
     except Exception as e:
         logger.error(f"サイト処理中の予期しないエラー [{site.name}]: {e}")
         return False
@@ -849,56 +849,56 @@ def main() -> None:
     """メイン処理：全サイトの記事を並行処理で取得・投稿"""
     try:
         logger.info("ニュース収集処理開始")
-        
+
         # デフォルトWebhookの初期化
         initialize_default_webhooks()
-        
+
         # データベース統計情報を出力
         total_articles = db.get_article_count()
         webhook_count = len(db.get_active_webhooks())
         logger.info(f"データベース記事数: {total_articles}件, アクティブWebhook数: {webhook_count}件")
-        
+
         # 古い記事のクリーンアップ（30日以上前の記事を削除）
         if total_articles > 1000:  # 記事数が多い場合のみクリーンアップ
             db.cleanup_old_articles(30)
-        
+
         news_sites = get_news_website_list()
         if not news_sites:
             logger.warning("処理対象のサイトがありません")
             return
-        
+
         threads = []
         results = {}
-        
+
         def thread_wrapper(site: "Website"):
             """スレッド用のラッパー関数"""
             results[site.name] = process_site(site)
-        
+
         # 各サイトを並行処理
         for site in news_sites:
             thread = threading.Thread(
-                target=thread_wrapper, 
+                target=thread_wrapper,
                 args=(site,),
                 name=f"Thread-{site.name}"
             )
             thread.start()
             threads.append(thread)
-        
+
         # 全スレッドの完了を待機
         for thread in threads:
             thread.join()
-        
+
         # 結果の集計
         successful = sum(1 for success in results.values() if success)
         total = len(results)
-        
+
         # サイト別の記事数統計
         for site in news_sites:
             site_count = db.get_article_count(site.name)
             logger.info(f"[{site.name}] 登録記事数: {site_count}件")
-        
+
         logger.info(f"ニュース収集処理完了: {successful}/{total} サイト成功")
-        
+
     except Exception as e:
         logger.error(f"メイン処理でエラーが発生しました: {e}")
 
@@ -910,11 +910,11 @@ def run_scheduler() -> None:
         scheduler = BlockingScheduler()
         # 日本時間（UTC+9）のタイムゾーン
         jst = timezone(timedelta(hours=9))
-        
+
         scheduler.add_job(
-            main, 
-            "cron", 
-            hour=9, 
+            main,
+            "cron",
+            hour=9,
             minute=0,
             timezone=jst,
             id="news_collector",
