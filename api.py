@@ -14,7 +14,8 @@ from app import db, Webhook, Website, ArticleDatabase
 app = FastAPI(
     title="News Notify App API",
     description="ニュース通知アプリケーションの管理API",
-    version="0.1.0"
+    version="0.1.0",
+    root_path="/api/v1"
 )
 
 # レスポンス用モデル
