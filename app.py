@@ -19,8 +19,7 @@ TRANSLATION_API_URL = "https://api.mymemory.translated.net/get"
 
 # ログ設定
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -31,32 +30,37 @@ def translate_to_japanese(text: str) -> str:
         return text
 
     # 既に日本語が含まれている場合はそのまま返す
-    if any('\u3040' <= char <= '\u309F' or '\u30A0' <= char <= '\u30FF' or '\u4E00' <= char <= '\u9FAF' for char in text):
+    if any(
+        "\u3040" <= char <= "\u309f"
+        or "\u30a0" <= char <= "\u30ff"
+        or "\u4e00" <= char <= "\u9faf"
+        for char in text
+    ):
         logger.debug(f"日本語が含まれているため翻訳をスキップ: {text[:50]}...")
         return text
 
     try:
         params = {
-            'q': text,
-            'langpair': 'en|ja',
-            'de': 'your-email@example.com'  # MyMemory APIでは任意のメールアドレスを指定
+            "q": text,
+            "langpair": "en|ja",
+            "de": "your-email@example.com",  # MyMemory APIでは任意のメールアドレスを指定
         }
 
         response = requests.get(
-            TRANSLATION_API_URL,
-            params=params,
-            timeout=REQUEST_TIMEOUT
+            TRANSLATION_API_URL, params=params, timeout=REQUEST_TIMEOUT
         )
         response.raise_for_status()
 
         data = response.json()
 
-        if data.get('responseStatus') == 200:
-            translated_text = data.get('responseData', {}).get('translatedText', text)
+        if data.get("responseStatus") == 200:
+            translated_text = data.get("responseData", {}).get("translatedText", text)
             logger.info(f"翻訳成功: {text[:30]}... → {translated_text[:30]}...")
             return translated_text
         else:
-            logger.warning(f"翻訳API応答エラー: {data.get('responseDetails', 'Unknown error')}")
+            logger.warning(
+                f"翻訳API応答エラー: {data.get('responseDetails', 'Unknown error')}"
+            )
             return text
 
     except requests.RequestException as e:
@@ -69,6 +73,7 @@ def translate_to_japanese(text: str) -> str:
 
 class Article(BaseModel):
     """記事を表すデータクラス"""
+
     title: str
     url: str
     original_title: str | None = None  # 翻訳前のオリジナルタイトル
@@ -82,7 +87,7 @@ class Article(BaseModel):
         # ハッシュ値はオリジナルタイトルで生成（翻訳による重複を防ぐ）
         original_title = self.original_title or self.title
         content = f"{original_title}|{self.url}"
-        return hashlib.md5(content.encode('utf-8')).hexdigest()
+        return hashlib.md5(content.encode("utf-8")).hexdigest()
 
     def translate_title(self) -> "Article":
         """タイトルを日本語に翻訳した新しいArticleインスタンスを返す"""
@@ -90,9 +95,7 @@ class Article(BaseModel):
             # 初回翻訳の場合、現在のタイトルをオリジナルとして保存
             translated_title = translate_to_japanese(self.title)
             return Article(
-                title=translated_title,
-                url=self.url,
-                original_title=self.title
+                title=translated_title, url=self.url, original_title=self.title
             )
         else:
             # 既に翻訳済みの場合はそのまま返す
@@ -101,6 +104,7 @@ class Article(BaseModel):
 
 class Webhook(BaseModel):
     """Webhookを表すデータクラス"""
+
     id: int | None = None
     name: str
     endpoint: str
@@ -116,7 +120,9 @@ class NotificationService(ABC):
         self.webhook = webhook
 
     @abstractmethod
-    def create_payload(self, website: "Website", articles: list[Article]) -> dict[str, Any]:
+    def create_payload(
+        self, website: "Website", articles: list[Article]
+    ) -> dict[str, Any]:
         """サービス固有のペイロードを作成"""
         pass
 
@@ -128,7 +134,9 @@ class NotificationService(ABC):
     def send_notification(self, website: "Website", articles: list[Article]) -> bool:
         """通知を送信"""
         if not articles:
-            logger.info(f"投稿する記事がありません: {website.name} -> {self.webhook.name}")
+            logger.info(
+                f"投稿する記事がありません: {website.name} -> {self.webhook.name}"
+            )
             return True
 
         try:
@@ -139,25 +147,33 @@ class NotificationService(ABC):
                 self.webhook.endpoint,
                 json=payload,
                 headers=headers,
-                timeout=REQUEST_TIMEOUT
+                timeout=REQUEST_TIMEOUT,
             )
             response.raise_for_status()
 
-            logger.info(f"{self.webhook.service_type}投稿成功: {website.name} -> {self.webhook.name} ({len(articles)}件)")
+            logger.info(
+                f"{self.webhook.service_type}投稿成功: {website.name} -> {self.webhook.name} ({len(articles)}件)"
+            )
             return True
 
         except requests.RequestException as e:
-            logger.error(f"{self.webhook.service_type}投稿エラー [{website.name} -> {self.webhook.name}]: {e}")
+            logger.error(
+                f"{self.webhook.service_type}投稿エラー [{website.name} -> {self.webhook.name}]: {e}"
+            )
             return False
         except Exception as e:
-            logger.error(f"予期しないエラー [{website.name} -> {self.webhook.name}]: {e}")
+            logger.error(
+                f"予期しないエラー [{website.name} -> {self.webhook.name}]: {e}"
+            )
             return False
 
 
 class DiscordService(NotificationService):
     """Discord通知サービス"""
 
-    def create_payload(self, website: "Website", articles: list[Article]) -> dict[str, Any]:
+    def create_payload(
+        self, website: "Website", articles: list[Article]
+    ) -> dict[str, Any]:
         """Discord用のペイロードを作成"""
         embeds = [article.to_embed_dict() for article in articles]
 
@@ -176,34 +192,36 @@ class DiscordService(NotificationService):
 class SlackService(NotificationService):
     """Slack通知サービス"""
 
-    def create_payload(self, website: "Website", articles: list[Article]) -> dict[str, Any]:
+    def create_payload(
+        self, website: "Website", articles: list[Article]
+    ) -> dict[str, Any]:
         """Slack用のペイロードを作成"""
         blocks = []
 
         # ヘッダーブロック
-        blocks.append({
-            "type": "header",
-            "text": {
-                "type": "plain_text",
-                "text": f"📰 {website.name} - 新着ニュース ({len(articles)}件)"
+        blocks.append(
+            {
+                "type": "header",
+                "text": {
+                    "type": "plain_text",
+                    "text": f"📰 {website.name} - 新着ニュース ({len(articles)}件)",
+                },
             }
-        })
+        )
 
         # 記事リスト
         for article in articles:
-            blocks.append({
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"• <{article.url}|{article.title}>"
+            blocks.append(
+                {
+                    "type": "section",
+                    "text": {
+                        "type": "mrkdwn",
+                        "text": f"• <{article.url}|{article.title}>",
+                    },
                 }
-            })
+            )
 
-        return {
-            "username": website.name,
-            "icon_url": website.avatar,
-            "blocks": blocks
-        }
+        return {"username": website.name, "icon_url": website.avatar, "blocks": blocks}
 
     def get_headers(self) -> dict[str, str]:
         """Slack用のヘッダーを取得"""
@@ -213,7 +231,9 @@ class SlackService(NotificationService):
 class TeamsService(NotificationService):
     """Microsoft Teams通知サービス"""
 
-    def create_payload(self, website: "Website", articles: list[Article]) -> dict[str, Any]:
+    def create_payload(
+        self, website: "Website", articles: list[Article]
+    ) -> dict[str, Any]:
         """Teams用のペイロードを作成（Adaptive Cards形式）"""
         content_body = [
             {
@@ -224,14 +244,16 @@ class TeamsService(NotificationService):
                 "wrap": True,
             }
         ]
-        
+
         for article in articles:
-            content_body.append({
-                "type": "TextBlock",
-                "text": f"- [{article.title}]({article.url})",
-                "wrap": True,
-                "markdown": True,
-            })
+            content_body.append(
+                {
+                    "type": "TextBlock",
+                    "text": f"- [{article.title}]({article.url})",
+                    "wrap": True,
+                    "markdown": True,
+                }
+            )
 
         return {
             "attachments": [
@@ -254,6 +276,7 @@ class TeamsService(NotificationService):
 
 class Website(BaseModel):
     """ウェブサイトの基底クラス"""
+
     id: int | None = None
     name: str
     type: str
@@ -271,10 +294,10 @@ class Website(BaseModel):
 
     def _validate_url(self, url: str) -> str:
         """URLの検証と正規化"""
-        if not url.startswith(('http://', 'https://')):
-            if self.url.endswith('/') and not url.startswith('/'):
+        if not url.startswith(("http://", "https://")):
+            if self.url.endswith("/") and not url.startswith("/"):
                 return f"{self.url}{url}"
-            elif not self.url.endswith('/') and url.startswith('/'):
+            elif not self.url.endswith("/") and url.startswith("/"):
                 return f"{self.url}{url}"
             else:
                 return f"{self.url}/{url}"
@@ -295,7 +318,8 @@ class ArticleDatabase:
                 cursor = conn.cursor()
 
                 # 記事テーブル
-                cursor.execute("""
+                cursor.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS articles (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         hash TEXT UNIQUE NOT NULL,
@@ -304,10 +328,12 @@ class ArticleDatabase:
                         site_name TEXT NOT NULL,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
-                """)
+                """
+                )
 
                 # Webhookテーブル
-                cursor.execute("""
+                cursor.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS webhooks (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         name TEXT UNIQUE NOT NULL,
@@ -316,10 +342,12 @@ class ArticleDatabase:
                         is_active BOOLEAN DEFAULT 1,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
-                """)
+                """
+                )
 
                 # Websiteテーブル
-                cursor.execute("""
+                cursor.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS websites (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         name TEXT UNIQUE NOT NULL,
@@ -332,24 +360,35 @@ class ArticleDatabase:
                         target_webhook_ids TEXT,
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
-                """)
+                """
+                )
 
                 # インデックス作成
-                cursor.execute("""
+                cursor.execute(
+                    """
                     CREATE INDEX IF NOT EXISTS idx_hash ON articles(hash)
-                """)
-                cursor.execute("""
+                """
+                )
+                cursor.execute(
+                    """
                     CREATE INDEX IF NOT EXISTS idx_site_created ON articles(site_name, created_at)
-                """)
-                cursor.execute("""
+                """
+                )
+                cursor.execute(
+                    """
                     CREATE INDEX IF NOT EXISTS idx_webhook_active ON webhooks(is_active)
-                """)
-                cursor.execute("""
+                """
+                )
+                cursor.execute(
+                    """
                     CREATE INDEX IF NOT EXISTS idx_website_active ON websites(is_active)
-                """)
-                cursor.execute("""
+                """
+                )
+                cursor.execute(
+                    """
                     CREATE INDEX IF NOT EXISTS idx_website_type ON websites(type)
-                """)
+                """
+                )
 
                 conn.commit()
                 logger.info("データベース初期化完了")
@@ -364,7 +403,7 @@ class ArticleDatabase:
                 cursor = conn.cursor()
                 cursor.execute(
                     "SELECT 1 FROM articles WHERE hash = ? LIMIT 1",
-                    (article.get_hash(),)
+                    (article.get_hash(),),
                 )
                 return cursor.fetchone() is not None
         except sqlite3.Error as e:
@@ -376,10 +415,13 @@ class ArticleDatabase:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT OR IGNORE INTO articles (hash, title, url, site_name)
                     VALUES (?, ?, ?, ?)
-                """, (article.get_hash(), article.title, article.url, site_name))
+                """,
+                    (article.get_hash(), article.title, article.url, site_name),
+                )
                 conn.commit()
                 return cursor.rowcount > 0
         except sqlite3.Error as e:
@@ -393,10 +435,13 @@ class ArticleDatabase:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 for article in articles:
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         INSERT OR IGNORE INTO articles (hash, title, url, site_name)
                         VALUES (?, ?, ?, ?)
-                    """, (article.get_hash(), article.title, article.url, site_name))
+                    """,
+                        (article.get_hash(), article.title, article.url, site_name),
+                    )
                     if cursor.rowcount > 0:
                         saved_count += 1
                 conn.commit()
@@ -418,7 +463,10 @@ class ArticleDatabase:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 if site_name:
-                    cursor.execute("SELECT COUNT(*) FROM articles WHERE site_name = ?", (site_name,))
+                    cursor.execute(
+                        "SELECT COUNT(*) FROM articles WHERE site_name = ?",
+                        (site_name,),
+                    )
                 else:
                     cursor.execute("SELECT COUNT(*) FROM articles")
                 return cursor.fetchone()[0]
@@ -431,10 +479,14 @@ class ArticleDatabase:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     DELETE FROM articles
                     WHERE created_at < datetime('now', '-{} days')
-                """.format(days))
+                """.format(
+                        days
+                    )
+                )
                 conn.commit()
                 deleted_count = cursor.rowcount
                 logger.info(f"古い記事を削除: {deleted_count}件")
@@ -449,10 +501,18 @@ class ArticleDatabase:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT INTO webhooks (name, endpoint, service_type, is_active)
                     VALUES (?, ?, ?, ?)
-                """, (webhook.name, webhook.endpoint, webhook.service_type, webhook.is_active))
+                """,
+                    (
+                        webhook.name,
+                        webhook.endpoint,
+                        webhook.service_type,
+                        webhook.is_active,
+                    ),
+                )
                 conn.commit()
                 logger.info(f"Webhook追加: {webhook.name} ({webhook.service_type})")
                 return True
@@ -468,12 +528,14 @@ class ArticleDatabase:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT id, name, endpoint, service_type, is_active, created_at
                     FROM webhooks
                     WHERE is_active = 1
                     ORDER BY created_at
-                """)
+                """
+                )
 
                 webhooks = []
                 for row in cursor.fetchall():
@@ -483,7 +545,7 @@ class ArticleDatabase:
                         endpoint=row[2],
                         service_type=row[3],
                         is_active=bool(row[4]),
-                        created_at=row[5]
+                        created_at=row[5],
                     )
                     webhooks.append(webhook)
 
@@ -497,9 +559,12 @@ class ArticleDatabase:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     UPDATE webhooks SET is_active = ? WHERE id = ?
-                """, (is_active, webhook_id))
+                """,
+                    (is_active, webhook_id),
+                )
                 conn.commit()
                 return cursor.rowcount > 0
         except sqlite3.Error as e:
@@ -524,19 +589,22 @@ class ArticleDatabase:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT INTO websites (name, type, url, avatar, selector, is_active, needs_translation, target_webhook_ids)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """, (
-                    website.name,
-                    website.type,
-                    website.url,
-                    website.avatar,
-                    website.selector,
-                    website.is_active,
-                    website.needs_translation,
-                    website.target_webhook_ids
-                ))
+                """,
+                    (
+                        website.name,
+                        website.type,
+                        website.url,
+                        website.avatar,
+                        website.selector,
+                        website.is_active,
+                        website.needs_translation,
+                        website.target_webhook_ids,
+                    ),
+                )
                 conn.commit()
                 logger.info(f"Website追加: {website.name} ({website.type})")
                 return True
@@ -552,12 +620,14 @@ class ArticleDatabase:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT id, name, type, url, avatar, selector, is_active, needs_translation, target_webhook_ids, created_at
                     FROM websites
                     WHERE is_active = 1
                     ORDER BY created_at
-                """)
+                """
+                )
 
                 websites = []
                 for row in cursor.fetchall():
@@ -571,7 +641,7 @@ class ArticleDatabase:
                         is_active=bool(row[6]),
                         needs_translation=bool(row[7]),
                         target_webhook_ids=row[8],
-                        created_at=row[9]
+                        created_at=row[9],
                     )
                     websites.append(website)
 
@@ -585,9 +655,12 @@ class ArticleDatabase:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     UPDATE websites SET is_active = ? WHERE id = ?
-                """, (is_active, website_id))
+                """,
+                    (is_active, website_id),
+                )
                 conn.commit()
                 return cursor.rowcount > 0
         except sqlite3.Error as e:
@@ -621,7 +694,7 @@ class RssSite(Website):
 
             articles = []
             for entry in feed.entries[:MAX_ARTICLES_PER_SITE]:
-                if hasattr(entry, 'title') and hasattr(entry, 'link'):
+                if hasattr(entry, "title") and hasattr(entry, "link"):
                     title = entry.title.strip()
                     link = self._validate_url(entry.link)
                     if title and link:
@@ -644,14 +717,10 @@ class ScrapingSite(Website):
             logger.info(f"スクレイピング開始: {self.name}")
 
             headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
             }
 
-            response = requests.get(
-                self.url,
-                headers=headers,
-                timeout=REQUEST_TIMEOUT
-            )
+            response = requests.get(self.url, headers=headers, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
 
             soup = BeautifulSoup(response.text, "html.parser")
@@ -694,7 +763,7 @@ def create_website_instance(website: Website) -> Website:
             is_active=website.is_active,
             needs_translation=website.needs_translation,
             target_webhook_ids=website.target_webhook_ids,
-            created_at=website.created_at
+            created_at=website.created_at,
         )
     elif website.type == "scraping":
         return ScrapingSite(
@@ -707,7 +776,7 @@ def create_website_instance(website: Website) -> Website:
             is_active=website.is_active,
             needs_translation=website.needs_translation,
             target_webhook_ids=website.target_webhook_ids,
-            created_at=website.created_at
+            created_at=website.created_at,
         )
     else:
         raise ValueError(f"サポートされていないWebsiteタイプ: {website.type}")
@@ -728,7 +797,9 @@ def create_notification_service(webhook: Webhook) -> NotificationService:
     return service_class(webhook)
 
 
-def _send_to_webhook(webhook: Webhook, website: "Website", articles: list[Article]) -> bool:
+def _send_to_webhook(
+    webhook: Webhook, website: "Website", articles: list[Article]
+) -> bool:
     """単一のWebhookに通知を送信"""
     try:
         service = create_notification_service(webhook)
@@ -743,12 +814,14 @@ def _send_to_webhook(webhook: Webhook, website: "Website", articles: list[Articl
 
 def _get_target_webhooks(webhooks: list[Webhook], website: "Website") -> list[Webhook]:
     """対象となるWebhookリストを取得"""
-    if not hasattr(website, 'target_webhook_ids') or not website.target_webhook_ids:
+    if not hasattr(website, "target_webhook_ids") or not website.target_webhook_ids:
         # target_webhook_ids が設定されていない場合、全てのWebhookが対象
         return webhooks
 
     # target_webhook_ids が設定されている場合、指定されたIDのWebhookのみ
-    target_ids = [id.strip() for id in website.target_webhook_ids.split(",") if id.strip()]
+    target_ids = [
+        id.strip() for id in website.target_webhook_ids.split(",") if id.strip()
+    ]
     return [webhook for webhook in webhooks if str(webhook.id) in target_ids]
 
 
@@ -779,7 +852,9 @@ def post_message(website: "Website", articles: list[Article]) -> bool:
     # 投稿成功後、記事をデータベースに保存
     if success_count > 0:
         saved_count = db.save_articles(articles, website.name)
-        logger.info(f"投稿完了: {website.name} ({success_count}/{len(target_webhooks)} Webhook成功, {saved_count}件DB保存)")
+        logger.info(
+            f"投稿完了: {website.name} ({success_count}/{len(target_webhooks)} Webhook成功, {saved_count}件DB保存)"
+        )
         return True
     else:
         logger.error(f"全てのWebhookで投稿に失敗: {website.name}")
@@ -821,10 +896,14 @@ def process_site(site: "Website") -> bool:
         # 新しい記事のみをフィルタリング
         new_articles = db.filter_new_articles(all_articles)
         if not new_articles:
-            logger.info(f"新着記事なし: {site.name} (取得: {len(all_articles)}件, 既存: {len(all_articles)}件)")
+            logger.info(
+                f"新着記事なし: {site.name} (取得: {len(all_articles)}件, 既存: {len(all_articles)}件)"
+            )
             return True
 
-        logger.info(f"新着記事発見: {site.name} (取得: {len(all_articles)}件, 新着: {len(new_articles)}件)")
+        logger.info(
+            f"新着記事発見: {site.name} (取得: {len(all_articles)}件, 新着: {len(new_articles)}件)"
+        )
 
         # 翻訳が必要な場合はタイトルを翻訳
         if site.needs_translation:
@@ -853,7 +932,9 @@ def initialize_default_webhooks() -> None:
     """デフォルトのWebhookを初期化"""
     webhooks = db.get_active_webhooks()
     if not webhooks:
-        logger.info("Webhookが設定されていません。データベースにWebhookを追加してください。")
+        logger.info(
+            "Webhookが設定されていません。データベースにWebhookを追加してください。"
+        )
 
 
 def main() -> None:
@@ -867,7 +948,9 @@ def main() -> None:
         # データベース統計情報を出力
         total_articles = db.get_article_count()
         webhook_count = len(db.get_active_webhooks())
-        logger.info(f"データベース記事数: {total_articles}件, アクティブWebhook数: {webhook_count}件")
+        logger.info(
+            f"データベース記事数: {total_articles}件, アクティブWebhook数: {webhook_count}件"
+        )
 
         # 古い記事のクリーンアップ（30日以上前の記事を削除）
         if total_articles > 1000:  # 記事数が多い場合のみクリーンアップ
@@ -888,9 +971,7 @@ def main() -> None:
         # 各サイトを並行処理
         for site in news_sites:
             thread = threading.Thread(
-                target=thread_wrapper,
-                args=(site,),
-                name=f"Thread-{site.name}"
+                target=thread_wrapper, args=(site,), name=f"Thread-{site.name}"
             )
             thread.start()
             threads.append(thread)
@@ -929,7 +1010,7 @@ def run_scheduler() -> None:
             minute=0,
             timezone=jst,
             id="news_collector",
-            max_instances=1  # 同時実行を防ぐ
+            max_instances=1,  # 同時実行を防ぐ
         )
         scheduler.start()
     except KeyboardInterrupt:
