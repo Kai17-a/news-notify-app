@@ -1,3 +1,4 @@
+import time
 import logging
 import requests
 import feedparser
@@ -139,33 +140,38 @@ class NotificationService(ABC):
             )
             return True
 
-        try:
-            payload = self.create_payload(website, articles)
-            headers = self.get_headers()
+        payload = self.create_payload(website, articles)
+        headers = self.get_headers()
+        max_retries = 3
 
-            response = requests.post(
-                self.webhook.endpoint,
-                json=payload,
-                headers=headers,
-                timeout=REQUEST_TIMEOUT,
-            )
-            response.raise_for_status()
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = requests.post(
+                    self.webhook.endpoint,
+                    json=payload,
+                    headers=headers,
+                    timeout=REQUEST_TIMEOUT,
+                )
+                response.raise_for_status()
 
-            logger.info(
-                f"{self.webhook.service_type}投稿成功: {website.name} -> {self.webhook.name} ({len(articles)}件)"
-            )
-            return True
+                logger.info(
+                    f"{self.webhook.service_type}投稿成功: {website.name} -> {self.webhook.name} ({len(articles)}件)"
+                )
+                return True
 
-        except requests.RequestException as e:
-            logger.error(
-                f"{self.webhook.service_type}投稿エラー [{website.name} -> {self.webhook.name}]: {e}"
-            )
-            return False
-        except Exception as e:
-            logger.error(
-                f"予期しないエラー [{website.name} -> {self.webhook.name}]: {e}"
-            )
-            return False
+            except requests.RequestException as e:
+                logger.error(
+                    f"{self.webhook.service_type}投稿エラー [{website.name} -> {self.webhook.name}] (試行 {attempt}/{max_retries}): {e}"
+                )
+                if attempt < max_retries:
+                    time.sleep(1)
+                else:
+                    return False
+            except Exception as e:
+                logger.error(
+                    f"予期しないエラー [{website.name} -> {self.webhook.name}]: {e}"
+                )
+                return False
 
 
 class DiscordService(NotificationService):
