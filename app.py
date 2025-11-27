@@ -1017,6 +1017,8 @@ def run_scheduler() -> None:
             timezone=jst,
             id="news_collector",
             max_instances=1,  # 同時実行を防ぐ
+            misfire_grace_time=300,
+            coalesce=False,
         )
         scheduler.start()
     except KeyboardInterrupt:
