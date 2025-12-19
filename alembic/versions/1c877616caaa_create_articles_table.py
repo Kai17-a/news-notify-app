@@ -52,3 +52,13 @@ def downgrade() -> None:
         DROP TABLE articles;
     """
     )
+    op.execute(
+        """
+    DROP INDEX IF EXISTS idx_hash;
+    """
+    )
+    op.execute(
+        """
+    DROP INDEX IF EXISTS idx_site_created;
+    """
+    )

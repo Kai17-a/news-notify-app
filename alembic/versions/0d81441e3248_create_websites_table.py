@@ -56,3 +56,13 @@ def downgrade() -> None:
         DROP TABLE webhooks;
     """
     )
+    op.execute(
+        """
+    DROP INDEX IF EXISTS idx_website_active;
+    """
+    )
+    op.execute(
+        """
+    DROP INDEX IF EXISTS idx_website_type;
+    """
+    )
