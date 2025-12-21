@@ -4,16 +4,14 @@ News Notify App - API テストスイート
 テスト内でuvicornサーバーを自動起動
 """
 
-import pytest
-import requests
-import json
+import socket
+import subprocess
 import time
 import uuid
-import subprocess
-import threading
-import socket
-from typing import Dict, Any
-from app import db, Webhook, Website
+from typing import Any, Dict
+
+import pytest
+import requests
 
 
 class APIClient:
@@ -45,7 +43,7 @@ def is_port_available(port: int) -> bool:
     """ポートが利用可能かチェック"""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         try:
-            s.bind(('localhost', port))
+            s.bind(("localhost", port))
             return True
         except OSError:
             return False
@@ -77,12 +75,22 @@ def api_server():
         return
 
     # uvicornサーバーを起動
-    process = subprocess.Popen([
-        "uv", "run", "uvicorn", "api:app",
-        "--host", "0.0.0.0",
-        "--port", str(port),
-        "--log-level", "error"  # ログレベルを下げてテスト出力をクリーンに
-    ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen(
+        [
+            "uv",
+            "run",
+            "uvicorn",
+            "api:app",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            str(port),
+            "--log-level",
+            "error",  # ログレベルを下げてテスト出力をクリーンに
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
 
     server_url = f"http://localhost:{port}"
 
@@ -111,10 +119,7 @@ def api_client(api_server):
 def setup_test_environment(api_client):
     """テスト環境のセットアップとクリーンアップ"""
     # テスト開始前の準備
-    created_test_data = {
-        "webhooks": [],
-        "websites": []
-    }
+    created_test_data = {"webhooks": [], "websites": []}
 
     yield created_test_data
 
@@ -131,10 +136,15 @@ def cleanup_test_data(api_client, created_test_data):
         if response.status_code == 200:
             webhooks = response.json()
             for webhook in webhooks:
-                if any(test_name in webhook["name"] for test_name in [
-                    "Test Teams Webhook", "Duplicate Test Webhook",
-                    "Invalid Service Webhook", "Consistency Test Webhook"
-                ]):
+                if any(
+                    test_name in webhook["name"]
+                    for test_name in [
+                        "Test Teams Webhook",
+                        "Duplicate Test Webhook",
+                        "Invalid Service Webhook",
+                        "Consistency Test Webhook",
+                    ]
+                ):
                     api_client.delete(f"/webhooks/{webhook['id']}")
                     print(f"Deleted test webhook: {webhook['name']}")
 
@@ -143,9 +153,14 @@ def cleanup_test_data(api_client, created_test_data):
         if response.status_code == 200:
             websites = response.json()
             for website in websites:
-                if any(test_name in website["name"] for test_name in [
-                    "Test RSS Site", "Test Scraping Site", "CRUD Test Site"
-                ]):
+                if any(
+                    test_name in website["name"]
+                    for test_name in [
+                        "Test RSS Site",
+                        "Test Scraping Site",
+                        "CRUD Test Site",
+                    ]
+                ):
                     api_client.delete(f"/websites/{website['id']}")
                     print(f"Deleted test website: {website['name']}")
 
@@ -216,7 +231,14 @@ class TestWebhookAPI:
         # Webhookが存在する場合の検証
         if data:
             webhook = data[0]
-            required_fields = ["id", "name", "endpoint", "service_type", "is_active", "created_at"]
+            required_fields = [
+                "id",
+                "name",
+                "endpoint",
+                "service_type",
+                "is_active",
+                "created_at",
+            ]
             for field in required_fields:
                 assert field in webhook
 
@@ -253,7 +275,7 @@ class TestWebhookAPI:
         webhook_data = {
             "name": webhook_name,
             "endpoint": f"https://outlook.office.com/webhook/test{unique_id}",
-            "service_type": "teams"
+            "service_type": "teams",
         }
 
         response = api_client.post("/webhooks", webhook_data)
@@ -279,7 +301,7 @@ class TestWebhookAPI:
         webhook_data = {
             "name": webhook_name,
             "endpoint": f"https://example.com/webhook/test{unique_id}",
-            "service_type": "discord"
+            "service_type": "discord",
         }
 
         # 最初の作成
@@ -351,7 +373,15 @@ class TestWebsiteAPI:
         # Websiteが存在する場合の検証
         if data:
             website = data[0]
-            required_fields = ["id", "name", "type", "url", "is_active", "needs_translation", "created_at"]
+            required_fields = [
+                "id",
+                "name",
+                "type",
+                "url",
+                "is_active",
+                "needs_translation",
+                "created_at",
+            ]
             for field in required_fields:
                 assert field in website
 
@@ -390,7 +420,7 @@ class TestWebsiteAPI:
             "type": "rss",
             "url": f"https://example.com/feed{unique_id}.xml",
             "avatar": "https://example.com/icon.png",
-            "needs_translation": True
+            "needs_translation": True,
         }
 
         response = api_client.post("/websites", website_data)
@@ -419,7 +449,7 @@ class TestWebsiteAPI:
             "url": f"https://example.com/news{unique_id}/",
             "selector": "article h2 a",
             "avatar": "https://example.com/favicon.ico",
-            "needs_translation": False
+            "needs_translation": False,
         }
 
         response = api_client.post("/websites", website_data)
@@ -469,7 +499,7 @@ class TestErrorHandling:
         response = requests.post(
             f"{api_client.base_url}/webhooks",
             data="invalid json",
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
         )
 
         assert response.status_code == 422
@@ -495,7 +525,7 @@ class TestErrorHandling:
         invalid_webhook = {
             "name": f"Invalid Service Webhook {unique_id}",
             "endpoint": f"https://example.com/webhook{unique_id}",
-            "service_type": "invalid_service"
+            "service_type": "invalid_service",
         }
 
         response = api_client.post("/webhooks", invalid_webhook)
@@ -540,7 +570,7 @@ class TestDataConsistency:
         webhook_data = {
             "name": webhook_name,
             "endpoint": f"https://example.com/consistency-test{unique_id}",
-            "service_type": "discord"
+            "service_type": "discord",
         }
         response = api_client.post("/webhooks", webhook_data)
         assert response.status_code == 200
@@ -568,7 +598,7 @@ class TestDataConsistency:
         website_data = {
             "name": f"CRUD Test Site {unique_id}",
             "type": "rss",
-            "url": f"https://example.com/crud-test{unique_id}.xml"
+            "url": f"https://example.com/crud-test{unique_id}.xml",
         }
 
         create_response = api_client.post("/websites", website_data)
@@ -577,7 +607,9 @@ class TestDataConsistency:
         # 読み取り - 作成されたWebsiteが存在することを確認
         response = api_client.get("/websites")
         websites = response.json()
-        crud_site = next((w for w in websites if w["name"] == f"CRUD Test Site {unique_id}"), None)
+        crud_site = next(
+            (w for w in websites if w["name"] == f"CRUD Test Site {unique_id}"), None
+        )
         assert crud_site is not None
 
         # 削除
@@ -587,15 +619,19 @@ class TestDataConsistency:
         # 削除後の確認
         response = api_client.get("/websites")
         websites = response.json()
-        crud_site_after_delete = next((w for w in websites if w["name"] == f"CRUD Test Site {unique_id}"), None)
+        crud_site_after_delete = next(
+            (w for w in websites if w["name"] == f"CRUD Test Site {unique_id}"), None
+        )
         assert crud_site_after_delete is None
 
 
 if __name__ == "__main__":
     # テストの実行
-    pytest.main([
-        __file__,
-        "-v",  # 詳細出力
-        "--tb=short",  # 短いトレースバック
-        "--color=yes"  # カラー出力
-    ])
+    pytest.main(
+        [
+            __file__,
+            "-v",  # 詳細出力
+            "--tb=short",  # 短いトレースバック
+            "--color=yes",  # カラー出力
+        ]
+    )

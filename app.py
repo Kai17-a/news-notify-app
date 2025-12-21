@@ -1,16 +1,17 @@
-import time
-import logging
-import requests
-import feedparser
-import threading
-import sqlite3
 import hashlib
-from datetime import datetime, timezone, timedelta
-from typing import Any
+import logging
+import sqlite3
+import threading
+import time
 from abc import ABC, abstractmethod
-from pydantic import BaseModel
-from bs4 import BeautifulSoup
+from datetime import timedelta, timezone
+from typing import Any
+
+import feedparser
+import requests
 from apscheduler.schedulers.blocking import BlockingScheduler
+from bs4 import BeautifulSoup
+from pydantic import BaseModel
 
 # 定数
 REQUEST_TIMEOUT = 30
@@ -19,9 +20,7 @@ DATABASE_PATH = "news_notify_app.db"
 TRANSLATION_API_URL = "https://api.mymemory.translated.net/get"
 
 # ログ設定
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -32,10 +31,7 @@ def translate_to_japanese(text: str) -> str:
 
     # 既に日本語が含まれている場合はそのまま返す
     if any(
-        "\u3040" <= char <= "\u309f"
-        or "\u30a0" <= char <= "\u30ff"
-        or "\u4e00" <= char <= "\u9faf"
-        for char in text
+        "\u3040" <= char <= "\u309f" or "\u30a0" <= char <= "\u30ff" or "\u4e00" <= char <= "\u9faf" for char in text
     ):
         logger.debug(f"日本語が含まれているため翻訳をスキップ: {text[:50]}...")
         return text
@@ -47,9 +43,7 @@ def translate_to_japanese(text: str) -> str:
             "de": "your-email@example.com",  # MyMemory APIでは任意のメールアドレスを指定
         }
 
-        response = requests.get(
-            TRANSLATION_API_URL, params=params, timeout=REQUEST_TIMEOUT
-        )
+        response = requests.get(TRANSLATION_API_URL, params=params, timeout=REQUEST_TIMEOUT)
         response.raise_for_status()
 
         data = response.json()
@@ -59,9 +53,7 @@ def translate_to_japanese(text: str) -> str:
             logger.info(f"翻訳成功: {text[:30]}... → {translated_text[:30]}...")
             return translated_text
         else:
-            logger.warning(
-                f"翻訳API応答エラー: {data.get('responseDetails', 'Unknown error')}"
-            )
+            logger.warning(f"翻訳API応答エラー: {data.get('responseDetails', 'Unknown error')}")
             return text
 
     except requests.RequestException as e:
@@ -95,9 +87,7 @@ class Article(BaseModel):
         if not self.original_title:
             # 初回翻訳の場合、現在のタイトルをオリジナルとして保存
             translated_title = translate_to_japanese(self.title)
-            return Article(
-                title=translated_title, url=self.url, original_title=self.title
-            )
+            return Article(title=translated_title, url=self.url, original_title=self.title)
         else:
             # 既に翻訳済みの場合はそのまま返す
             return self
@@ -121,9 +111,7 @@ class NotificationService(ABC):
         self.webhook = webhook
 
     @abstractmethod
-    def create_payload(
-        self, website: "Website", articles: list[Article]
-    ) -> dict[str, Any]:
+    def create_payload(self, website: "Website", articles: list[Article]) -> dict[str, Any]:
         """サービス固有のペイロードを作成"""
         pass
 
@@ -135,9 +123,7 @@ class NotificationService(ABC):
     def send_notification(self, website: "Website", articles: list[Article]) -> bool:
         """通知を送信"""
         if not articles:
-            logger.info(
-                f"投稿する記事がありません: {website.name} -> {self.webhook.name}"
-            )
+            logger.info(f"投稿する記事がありません: {website.name} -> {self.webhook.name}")
             return True
 
         payload = self.create_payload(website, articles)
@@ -168,18 +154,14 @@ class NotificationService(ABC):
                 else:
                     return False
             except Exception as e:
-                logger.error(
-                    f"予期しないエラー [{website.name} -> {self.webhook.name}]: {e}"
-                )
+                logger.error(f"予期しないエラー [{website.name} -> {self.webhook.name}]: {e}")
                 return False
 
 
 class DiscordService(NotificationService):
     """Discord通知サービス"""
 
-    def create_payload(
-        self, website: "Website", articles: list[Article]
-    ) -> dict[str, Any]:
+    def create_payload(self, website: "Website", articles: list[Article]) -> dict[str, Any]:
         """Discord用のペイロードを作成"""
         embeds = [article.to_embed_dict() for article in articles]
 
@@ -198,9 +180,7 @@ class DiscordService(NotificationService):
 class SlackService(NotificationService):
     """Slack通知サービス"""
 
-    def create_payload(
-        self, website: "Website", articles: list[Article]
-    ) -> dict[str, Any]:
+    def create_payload(self, website: "Website", articles: list[Article]) -> dict[str, Any]:
         """Slack用のペイロードを作成"""
         blocks = []
 
@@ -237,9 +217,7 @@ class SlackService(NotificationService):
 class TeamsService(NotificationService):
     """Microsoft Teams通知サービス"""
 
-    def create_payload(
-        self, website: "Website", articles: list[Article]
-    ) -> dict[str, Any]:
+    def create_payload(self, website: "Website", articles: list[Article]) -> dict[str, Any]:
         """Teams用のペイロードを作成（Adaptive Cards形式）"""
         content_body = [
             {
@@ -489,9 +467,7 @@ class ArticleDatabase:
                     """
                     DELETE FROM articles
                     WHERE created_at < datetime('now', '-{} days')
-                """.format(
-                        days
-                    )
+                """.format(days)
                 )
                 conn.commit()
                 deleted_count = cursor.rowcount
@@ -722,9 +698,7 @@ class ScrapingSite(Website):
         try:
             logger.info(f"スクレイピング開始: {self.name}")
 
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            }
+            headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
             response = requests.get(self.url, headers=headers, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
@@ -803,9 +777,7 @@ def create_notification_service(webhook: Webhook) -> NotificationService:
     return service_class(webhook)
 
 
-def _send_to_webhook(
-    webhook: Webhook, website: "Website", articles: list[Article]
-) -> bool:
+def _send_to_webhook(webhook: Webhook, website: "Website", articles: list[Article]) -> bool:
     """単一のWebhookに通知を送信"""
     try:
         service = create_notification_service(webhook)
@@ -825,9 +797,7 @@ def _get_target_webhooks(webhooks: list[Webhook], website: "Website") -> list[We
         return webhooks
 
     # target_webhook_ids が設定されている場合、指定されたIDのWebhookのみ
-    target_ids = [
-        id.strip() for id in website.target_webhook_ids.split(",") if id.strip()
-    ]
+    target_ids = [id.strip() for id in website.target_webhook_ids.split(",") if id.strip()]
     return [webhook for webhook in webhooks if str(webhook.id) in target_ids]
 
 
@@ -902,14 +872,10 @@ def process_site(site: "Website") -> bool:
         # 新しい記事のみをフィルタリング
         new_articles = db.filter_new_articles(all_articles)
         if not new_articles:
-            logger.info(
-                f"新着記事なし: {site.name} (取得: {len(all_articles)}件, 既存: {len(all_articles)}件)"
-            )
+            logger.info(f"新着記事なし: {site.name} (取得: {len(all_articles)}件, 既存: {len(all_articles)}件)")
             return True
 
-        logger.info(
-            f"新着記事発見: {site.name} (取得: {len(all_articles)}件, 新着: {len(new_articles)}件)"
-        )
+        logger.info(f"新着記事発見: {site.name} (取得: {len(all_articles)}件, 新着: {len(new_articles)}件)")
 
         # 翻訳が必要な場合はタイトルを翻訳
         if site.needs_translation:
@@ -938,9 +904,7 @@ def initialize_default_webhooks() -> None:
     """デフォルトのWebhookを初期化"""
     webhooks = db.get_active_webhooks()
     if not webhooks:
-        logger.info(
-            "Webhookが設定されていません。データベースにWebhookを追加してください。"
-        )
+        logger.info("Webhookが設定されていません。データベースにWebhookを追加してください。")
 
 
 def main() -> None:
@@ -954,9 +918,7 @@ def main() -> None:
         # データベース統計情報を出力
         total_articles = db.get_article_count()
         webhook_count = len(db.get_active_webhooks())
-        logger.info(
-            f"データベース記事数: {total_articles}件, アクティブWebhook数: {webhook_count}件"
-        )
+        logger.info(f"データベース記事数: {total_articles}件, アクティブWebhook数: {webhook_count}件")
 
         # 古い記事のクリーンアップ（30日以上前の記事を削除）
         if total_articles > 1000:  # 記事数が多い場合のみクリーンアップ
@@ -976,9 +938,7 @@ def main() -> None:
 
         # 各サイトを並行処理
         for site in news_sites:
-            thread = threading.Thread(
-                target=thread_wrapper, args=(site,), name=f"Thread-{site.name}"
-            )
+            thread = threading.Thread(target=thread_wrapper, args=(site,), name=f"Thread-{site.name}")
             thread.start()
             threads.append(thread)
 

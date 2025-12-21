@@ -17,8 +17,11 @@ def setup_pre_push():
 
         # 初回実行でフックをテスト
         print("Running pre-push hooks on all files...")
-        result = subprocess.run(["uv", "run", "pre-commit", "run", "--all-files", "--hook-stage", "pre-push"],
-                              capture_output=True, text=True)
+        result = subprocess.run(
+            ["uv", "run", "pre-commit", "run", "--all-files", "--hook-stage", "pre-push"],
+            capture_output=True,
+            text=True,
+        )
 
         if result.returncode == 0:
             print("✅ All pre-push checks passed!")

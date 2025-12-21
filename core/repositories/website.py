@@ -1,5 +1,5 @@
 from models.model import Website
-from sqlmodel import Session, delete, select, update
+from sqlmodel import Session, select
 
 
 class WebsiteRepository:
