@@ -12,13 +12,24 @@ def setup_pre_push():
     try:
         # pre-pushフックをインストール
         print("Installing pre-push hooks...")
-        subprocess.run(["uv", "run", "pre-commit", "install", "--hook-type", "pre-push"], check=True)
+        subprocess.run(
+            ["uv", "run", "pre-commit", "install", "--hook-type", "pre-push"],
+            check=True,
+        )
         print("✅ Pre-push hooks installed successfully!")
 
         # 初回実行でフックをテスト
         print("Running pre-push hooks on all files...")
         result = subprocess.run(
-            ["uv", "run", "pre-commit", "run", "--all-files", "--hook-stage", "pre-push"],
+            [
+                "uv",
+                "run",
+                "pre-commit",
+                "run",
+                "--all-files",
+                "--hook-stage",
+                "pre-push",
+            ],
             capture_output=True,
             text=True,
         )

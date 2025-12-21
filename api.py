@@ -111,7 +111,10 @@ async def get_webhooks():
             for webhook in webhooks
         ]
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Webhook取得エラー: {e!s}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Webhook取得エラー: {e!s}",
+        )
 
 
 @app.get("/webhooks/{webhook_id}", response_model=WebhookResponse)
@@ -122,7 +125,9 @@ async def get_webhook(webhook_id: int):
         webhook = next((w for w in webhooks if w.id == webhook_id), None)
 
         if not webhook:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhookが見つかりません")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Webhookが見つかりません"
+            )
 
         return WebhookResponse(
             id=webhook.id,
@@ -135,7 +140,10 @@ async def get_webhook(webhook_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Webhook取得エラー: {e!s}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Webhook取得エラー: {e!s}",
+        )
 
 
 @app.post("/webhooks", response_model=StatusResponse)
@@ -159,7 +167,10 @@ async def create_webhook(webhook_data: WebhookCreate):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Webhook作成エラー: {e!s}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Webhook作成エラー: {e!s}",
+        )
 
 
 @app.put("/webhooks/{webhook_id}", response_model=StatusResponse)
@@ -171,21 +182,29 @@ async def update_webhook(webhook_id: int, webhook_data: WebhookUpdate):
         current_webhook = next((w for w in webhooks if w.id == webhook_id), None)
 
         if not current_webhook:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhookが見つかりません")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Webhookが見つかりません"
+            )
 
         # is_activeの更新のみサポート（他のフィールドは削除して再作成が必要）
         if webhook_data.is_active is not None:
             if db.update_webhook_status(webhook_id, webhook_data.is_active):
                 return StatusResponse(message="Webhook更新成功", success=True)
             else:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Webhook更新に失敗しました")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Webhook更新に失敗しました",
+                )
         else:
             return StatusResponse(message="更新項目がありません", success=True)
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Webhook更新エラー: {e!s}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Webhook更新エラー: {e!s}",
+        )
 
 
 @app.delete("/webhooks/{webhook_id}", response_model=StatusResponse)
@@ -195,11 +214,16 @@ async def delete_webhook(webhook_id: int):
         if db.delete_webhook(webhook_id):
             return StatusResponse(message="Webhook削除成功", success=True)
         else:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhookが見つかりません")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Webhookが見つかりません"
+            )
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Webhook削除エラー: {e!s}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Webhook削除エラー: {e!s}",
+        )
 
 
 # Website API
@@ -224,7 +248,10 @@ async def get_websites():
             for website in websites
         ]
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Website取得エラー: {e!s}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Website取得エラー: {e!s}",
+        )
 
 
 @app.get("/websites/{website_id}", response_model=WebsiteResponse)
@@ -235,7 +262,9 @@ async def get_website(website_id: int):
         website = next((w for w in websites if w.id == website_id), None)
 
         if not website:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Websiteが見つかりません")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Websiteが見つかりません"
+            )
 
         return WebsiteResponse(
             id=website.id,
@@ -252,7 +281,10 @@ async def get_website(website_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Website取得エラー: {e!s}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Website取得エラー: {e!s}",
+        )
 
 
 @app.post("/websites", response_model=StatusResponse)
@@ -280,7 +312,10 @@ async def create_website(website_data: WebsiteCreate):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Website作成エラー: {e!s}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Website作成エラー: {e!s}",
+        )
 
 
 @app.put("/websites/{website_id}", response_model=StatusResponse)
@@ -292,21 +327,29 @@ async def update_website(website_id: int, website_data: WebsiteUpdate):
         current_website = next((w for w in websites if w.id == website_id), None)
 
         if not current_website:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Websiteが見つかりません")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Websiteが見つかりません"
+            )
 
         # is_activeの更新のみサポート（他のフィールドは削除して再作成が必要）
         if website_data.is_active is not None:
             if db.update_website_status(website_id, website_data.is_active):
                 return StatusResponse(message="Website更新成功", success=True)
             else:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Website更新に失敗しました")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Website更新に失敗しました",
+                )
         else:
             return StatusResponse(message="更新項目がありません", success=True)
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Website更新エラー: {e!s}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Website更新エラー: {e!s}",
+        )
 
 
 @app.delete("/websites/{website_id}", response_model=StatusResponse)
@@ -316,11 +359,16 @@ async def delete_website(website_id: int):
         if db.delete_website(website_id):
             return StatusResponse(message="Website削除成功", success=True)
         else:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Websiteが見つかりません")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Websiteが見つかりません"
+            )
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Website削除エラー: {e!s}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Website削除エラー: {e!s}",
+        )
 
 
 # 統計情報API
@@ -332,9 +380,16 @@ async def get_stats():
         webhook_count = len(db.get_active_webhooks())
         website_count = len(db.get_active_websites())
 
-        return {"total_articles": total_articles, "active_webhooks": webhook_count, "active_websites": website_count}
+        return {
+            "total_articles": total_articles,
+            "active_webhooks": webhook_count,
+            "active_websites": website_count,
+        }
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"統計情報取得エラー: {e!s}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"統計情報取得エラー: {e!s}",
+        )
 
 
 def run_api():
