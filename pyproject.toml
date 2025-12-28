@@ -16,12 +16,25 @@ dependencies = [
     "alembic>=1.17.2",
 ]
 
-[tool.uv]
-dev-dependencies = [
-    "pytest>=7.4.0",
-    "pytest-asyncio>=0.21.0",
-    "pre-commit>=3.5.0",
-]
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = ["E501", "D100", "D107"]
+
+[tool.ruff.format]
+# quote-style = "single"
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["D100", "D104", "F401"]
+
+[dependency-groups]
+dev = ["pytest>=7.4.0", "pytest-asyncio>=0.21.0", "pre-commit>=3.5.0"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [project.scripts]
 app = "app:run_scheduler"
