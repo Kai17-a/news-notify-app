@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-News Notify App - API テストスイート
+"""News Notify App - API テストスイート
 テスト内でuvicornサーバーを自動起動
 """
 
@@ -8,7 +7,7 @@ import socket
 import subprocess
 import time
 import uuid
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 import requests
@@ -26,11 +25,11 @@ class APIClient:
         """GET リクエスト"""
         return self.session.get(f"{self.base_url}{endpoint}")
 
-    def post(self, endpoint: str, data: Dict[str, Any]) -> requests.Response:
+    def post(self, endpoint: str, data: dict[str, Any]) -> requests.Response:
         """POST リクエスト"""
         return self.session.post(f"{self.base_url}{endpoint}", json=data)
 
-    def put(self, endpoint: str, data: Dict[str, Any]) -> requests.Response:
+    def put(self, endpoint: str, data: dict[str, Any]) -> requests.Response:
         """PUT リクエスト"""
         return self.session.put(f"{self.base_url}{endpoint}", json=data)
 
@@ -509,7 +508,7 @@ class TestErrorHandling:
     def test_missing_required_fields(self, api_client):
         """必須フィールド不足のテスト"""
         incomplete_webhook = {
-            "name": "Incomplete Webhook"
+            "name": "Incomplete Webhook",
             # endpoint と service_type が不足
         }
 
@@ -608,7 +607,8 @@ class TestDataConsistency:
         response = api_client.get("/websites")
         websites = response.json()
         crud_site = next(
-            (w for w in websites if w["name"] == f"CRUD Test Site {unique_id}"), None
+            (w for w in websites if w["name"] == f"CRUD Test Site {unique_id}"),
+            None,
         )
         assert crud_site is not None
 
@@ -620,7 +620,8 @@ class TestDataConsistency:
         response = api_client.get("/websites")
         websites = response.json()
         crud_site_after_delete = next(
-            (w for w in websites if w["name"] == f"CRUD Test Site {unique_id}"), None
+            (w for w in websites if w["name"] == f"CRUD Test Site {unique_id}"),
+            None,
         )
         assert crud_site_after_delete is None
 
@@ -633,5 +634,5 @@ if __name__ == "__main__":
             "-v",  # 詳細出力
             "--tb=short",  # 短いトレースバック
             "--color=yes",  # カラー出力
-        ]
+        ],
     )

@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-テスト実行スクリプト
-"""
+"""テスト実行スクリプト"""
 
 import sys
 

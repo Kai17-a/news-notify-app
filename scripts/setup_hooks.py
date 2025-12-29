@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
-"""
-Pre-pushフックのセットアップスクリプト
-"""
+"""Pre-pushフックのセットアップスクリプト."""
 
 import subprocess
 import sys
 
 
-def setup_pre_push():
-    """Pre-pushフックをセットアップ"""
+def setup_pre_push() -> bool | None:
+    """Pre-pushフックをセットアップ."""
     try:
         # pre-pushフックをインストール
         print("Installing pre-push hooks...")
         subprocess.run(
-            ["uv", "run", "pre-commit", "install", "--hook-type", "pre-push"],
+            [
+                "uv",
+                "run",
+                "pre-commit",
+                "install",
+                "--hook-type",
+                "pre-push",
+            ],
             check=True,
         )
         print("✅ Pre-push hooks installed successfully!")
@@ -30,6 +35,7 @@ def setup_pre_push():
                 "--hook-stage",
                 "pre-push",
             ],
+            check=False,
             capture_output=True,
             text=True,
         )
