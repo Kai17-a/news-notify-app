@@ -5,6 +5,7 @@ from sqlmodel import Field, SQLModel
 
 class WebhookType(Enum):
     """Enum for supported webhook service types."""
+
     DISCORD = "discord"
     SLACK = "slack"
     TEAMS = "teams"
@@ -12,12 +13,14 @@ class WebhookType(Enum):
 
 class WebsiteType(Enum):
     """Enum for website data retrieval types."""
+
     RSS = "rss"
     SCRAPING = "scraping"
 
 
 class Article(SQLModel, table=True):
     """Model representing a news article."""
+
     __tablename__ = "articles"
 
     id: int = Field(default=None, primary_key=True)
@@ -30,6 +33,7 @@ class Article(SQLModel, table=True):
 
 class Webhook(SQLModel, table=True):
     """Model representing a webhook notification endpoint."""
+
     __tablename__ = "webhooks"
 
     id: int = Field(default=None, primary_key=True)
@@ -42,6 +46,7 @@ class Webhook(SQLModel, table=True):
 
 class Website(SQLModel, table=True):
     """Model representing a news website source."""
+
     __tablename__ = "websites"
 
     id: int = Field(default=None, primary_key=True)
