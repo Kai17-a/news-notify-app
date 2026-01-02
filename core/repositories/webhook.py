@@ -1,5 +1,6 @@
-from models.model import Webhook
 from sqlmodel import Session, select
+
+from core.models.model import Webhook
 
 
 class WebhookRepository:
