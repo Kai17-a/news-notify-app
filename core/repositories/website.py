@@ -1,5 +1,7 @@
-from models.model import Website
 from sqlmodel import Session, select
+
+from core.config import logger
+from core.models.model import Website
 
 
 class WebsiteRepository:
@@ -35,9 +37,33 @@ class WebsiteRepository:
         list[Website]
             A list of all website objects ordered by id.
         """
-        return self.session.exec(select(Website).order_by(Website.id)).all()
+        try:
+            results = self.session.exec(select(Website).order_by(Website.id)).all()
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to get all website")
+            return []
+        else:
+            return results
 
-    def get_by_id(self, website_id: int) -> Website:
+    def get_all_with_active(self) -> list[Website]:
+        """Retrieve all websites with status is active ordered by id.
+
+        Returns:
+        -------
+        list[Website]
+            A list of all website objects with active ordered by id.
+        """
+        try:
+            results = self.session.exec(
+                select(Website).where(Website.is_active).order_by(Website.id),
+            ).all()
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to get website with active status")
+            return []
+        else:
+            return results
+
+    def get_by_id(self, website_id: int) -> Website | None:
         """Retrieve a website by its id.
 
         Parameters:
@@ -90,7 +116,18 @@ class WebsiteRepository:
         if website is None:
             msg = f"Website with id {website_.id} does not exist."
             raise ValueError(msg)
+
+        website.name = website_.name
+        website.type = website_.type
+        website.url = website_.url
+        website.avatar = website_.avatar
+        website.selector = website_.selector
+        website.is_active = website_.is_active
+        website.needs_translation = website_.needs_translation
+        website.target_webhook_ids = website_.target_webhook_ids
+
         self.session.add(website_)
+        self.session.refresh(website_)
 
     def delete_by_id(self, website_id: int) -> None:
         """Delete a website by its id.
