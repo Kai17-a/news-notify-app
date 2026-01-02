@@ -1,43 +1,41 @@
-import logging
+import itertools
 
 import feedparser
 import requests
 from bs4 import BeautifulSoup
-from models.model import Article, Website
-from repositories.website import WebsiteRepository
 from sqlmodel import Session
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
-
-MAX_ARTICLES_PER_SITE = 10
+from core.config import MAX_ARTICLES_PER_SITE, logger
+from core.models.model import Article, Website
+from core.repositories.article import ArticleRepository
+from core.repositories.website import WebsiteRepository
 
 
 class FetcherService:
     """記事取得."""
 
     def __init__(self, website: Website, session: Session) -> None:
-        self.repository = WebsiteRepository(session)
+        self.article_repository = ArticleRepository(session)
+        self.website_repository = WebsiteRepository(session)
         self.website = website
 
-    def __validate_url(self) -> str:
+    def __validate_url(self, url: str) -> str:
         """URLの検証と正規化."""
-        if not self.website.url.startswith(("http://", "https://")):
-            if (
-                self.website.url.endswith("/") and not self.website.url.startswith("/")
-            ) or (
-                not self.website.url.endswith("/") and self.website.url.startswith("/")
+        if not url.startswith(("http://", "https://")):
+            if (url.endswith("/") and not url.startswith("/")) or (
+                not url.endswith("/") and url.startswith("/")
             ):
-                return f"{self.website.url}{self.website.url}"
-            return f"{self.website.url}/{self.website.url}"
-        return self.website.url
+                return f"{url}{url}"
+            return f"{url}/{url}"
+        return url
+
+    def __is_already_fetched(self, article: Article) -> bool:
+        """過去に取得している記事か."""
+        return self.article_repository.get_by_url(article.url) is not None
 
     def fetch_rss(self) -> list[Article]:
         """RSSフィードから記事を取得."""
-        articles = []
+        articles: list[Article] = []
 
         try:
             logger.info("RSSフィード取得開始: %s", self.website.name)
@@ -49,7 +47,6 @@ class FetcherService:
                     self.website.name,
                 )
 
-            articles = []
             for entry in feed.entries[:MAX_ARTICLES_PER_SITE]:
                 if hasattr(entry, "title") and hasattr(entry, "link"):
                     title = entry.title.strip()
@@ -61,13 +58,18 @@ class FetcherService:
 
         except Exception:
             logger.exception("RSS記事取得エラー [%s]", self.website.name)
-
+            raise
         else:
-            return articles
+            return list(
+                itertools.filterfalse(
+                    lambda x: self.__is_already_fetched(x),
+                    articles,
+                ),
+            )
 
     def fetch_scrap(self) -> list[Article]:
         """Webサイトから記事を取得."""
-        article = []
+        articles: list[Article] = []
 
         try:
             logger.info("スクレイピング開始: %s", self.website.name)
@@ -75,30 +77,33 @@ class FetcherService:
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             }
 
-            response = requests.get(self.url, headers=headers, timeout=30)
+            response = requests.get(self.website.url, headers=headers, timeout=30)
             response.raise_for_status()
 
             soup = BeautifulSoup(response.text, "html.parser")
-            anchors = soup.select(self.selector or "")
+            anchors = soup.select(self.website.selector or "")
 
-            articles: list[Article] = []
             for anchor in anchors[:MAX_ARTICLES_PER_SITE]:
                 href = anchor.get("href")
                 if href:
                     title = anchor.get_text(strip=True)
                     if title:
-                        url = self._validate_url(href)
+                        url = self.__validate_url(href)
                         articles.append(Article(title=title, url=url))
 
             logger.info(
                 "スクレイピング完了: %s (%s)",
                 self.website.name,
-                len(article),
+                len(articles),
             )
 
         except requests.RequestException:
             logger.exception("HTTP リクエストエラー [%s]", self.website.name)
+            raise
         except Exception:
             logger.exception("スクレイピングエラー [%s]", self.website.name)
+            raise
         else:
-            return articles
+            return list(
+                itertools.filterfalse(lambda x: self.__is_already_fetched(x), articles),
+            )

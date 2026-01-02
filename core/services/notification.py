@@ -1,18 +1,13 @@
-import logging
 import time
 from abc import ABC, abstractmethod
 from typing import Any
 
 import requests
-from models.model import Article, Webhook, Website
-from repositories.webhook import WebhookRepository
 from sqlmodel import Session
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-logger = logging.getLogger(__name__)
+from core.config import logger
+from core.models.model import Article, Webhook, Website
+from core.repositories.webhook import WebhookRepository
 
 
 class __NotificationServiceImpl(ABC):
@@ -65,7 +60,7 @@ class __NotificationServiceImpl(ABC):
                 if attempt < max_retries:
                     time.sleep(1)
                 else:
-                    return False
+                    raise
             except Exception:
                 logger.exception(
                     "予期しないエラー [%s -> %s]",
@@ -82,7 +77,6 @@ class __NotificationServiceImpl(ABC):
                     len(articles),
                 )
                 return True
-        return None
 
 
 class DiscordService(__NotificationServiceImpl):
@@ -90,7 +84,7 @@ class DiscordService(__NotificationServiceImpl):
 
     def create_payload(
         self,
-        website: Webhook,
+        website: Website,
         articles: list[Article],
     ) -> dict[str, Any]:
         """Discord用のペイロードを作成."""
@@ -128,7 +122,7 @@ class SlackService(__NotificationServiceImpl):
 
         # 記事リスト
         for article in articles:
-            blocks.extend(
+            blocks.append(
                 {
                     "type": "section",
                     "text": {
