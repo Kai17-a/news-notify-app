@@ -1,3 +1,6 @@
+import os
+
+from dotenv import load_dotenv
 import pytest
 
 from core.models.model import Article, Webhook, Website
@@ -8,6 +11,8 @@ from core.services.notification import DiscordService, SlackService
 def engine():
     yield engine
 
+
+load_dotenv()
 
 article = Article(
     title="test",
@@ -26,7 +31,7 @@ class TestNotification:
     def test_discord(self):
         webhook = Webhook(
             name="Discord",
-            endpoint="",
+            endpoint=os.environ.get("TEST_WEBHOOK_DISCORD"),
             service_type="discord",
         )
         service = DiscordService(webhook)
@@ -37,7 +42,7 @@ class TestNotification:
     def test_slack(self):
         webhook = Webhook(
             name="slack",
-            endpoint="",
+            endpoint=os.environ.get("TEST_WEBHOOK_SLACK"),
             service_type="slack",
         )
         service = SlackService(webhook)
