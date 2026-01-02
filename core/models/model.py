@@ -1,6 +1,6 @@
 from enum import Enum
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, SQLModel, text
 
 
 class WebhookType(Enum):
@@ -24,11 +24,20 @@ class Article(SQLModel, table=True):
     __tablename__ = "articles"
 
     id: int = Field(default=None, primary_key=True)
-    hash: str = Field(index=True)
+    hash: str | None = Field(index=True)
     title: str
     url: str
     site_name: str
-    created_at: str
+    created_at: str = Field(
+        nullable=False,
+        sa_column_kwargs={
+            "server_default": text("CURRENT_TIMESTAMP"),
+        },
+    )
+
+    def to_embed_dict(self) -> dict[str, str]:
+        """Discord埋め込み用の辞書に変換."""
+        return {"title": self.title, "url": self.url}
 
 
 class Webhook(SQLModel, table=True):
@@ -39,9 +48,14 @@ class Webhook(SQLModel, table=True):
     id: int = Field(default=None, primary_key=True)
     name: str = Field(unique=True)
     endpoint: str = Field(unique=True)
-    service_type: WebhookType
+    service_type: str
     is_active: bool = Field(default=True)
-    created_at: str
+    created_at: str = Field(
+        nullable=False,
+        sa_column_kwargs={
+            "server_default": text("CURRENT_TIMESTAMP"),
+        },
+    )
 
 
 class Website(SQLModel, table=True):
@@ -51,11 +65,16 @@ class Website(SQLModel, table=True):
 
     id: int = Field(default=None, primary_key=True)
     name: str = Field(unique=True)
-    type: WebsiteType
+    type: str
     url: str = Field(unique=True)
     avatar: str | None = Field(default=None, unique=True)
     selector: str | None = Field(default=None)
     is_active: bool = Field(default=True)
     needs_translation: bool = Field(default=False)
     target_webhook_ids: str | None = Field(default=None)
-    created_at: str
+    created_at: str = Field(
+        nullable=False,
+        sa_column_kwargs={
+            "server_default": text("CURRENT_TIMESTAMP"),
+        },
+    )
