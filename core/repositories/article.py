@@ -1,5 +1,8 @@
-from models.model import Article
 from sqlmodel import Session, select
+
+from core.config import logger
+from core.models.model import Article
+from core.utils import is_older_days
 
 
 class ArticleRepository:
@@ -94,6 +97,35 @@ class ArticleRepository:
             raise ValueError(error_message)
         return article
 
+    def get_by_url(self, url: str) -> Article | None:
+        """Retrieve an article by its url.
+
+        Parameters
+        ----------
+        url : str
+            The URL of the article to retrieve.
+
+        Returns:
+        -------
+        Article
+            The article with the specified URL.
+
+        Raises:
+        ------
+        ValueError
+            If no article with the specified URL exists.
+        """
+        article = None
+        try:
+            article = self.session.exec(
+                select(Article).where(Article.url == url),
+            ).first()
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to get Article by url")
+            return None
+        else:
+            return article
+
     def save(self, article_: Article) -> None:
         """Save a new article to the database.
 
@@ -142,3 +174,30 @@ class ArticleRepository:
         else:
             error_message = f"Article with id {article_id} does not exist."
             raise ValueError(error_message)
+
+    def delete_old_articles(self, days: int = 30) -> int:
+        """Delete articles older than the specified number of days.
+
+        Parameters
+        ----------
+        days : int, optional
+            Number of days to keep articles. Articles older than this
+            value will be deleted. Default is 30.
+
+        Raises:
+        ------
+        ValueError
+            If an invalid value for `days` is provided.
+        """
+        if days <= 0:
+            error_message = "`days` must be a positive integer."
+            raise ValueError(error_message)
+
+        statement = select(Article).where(is_older_days(Article.created_at))
+        results = self.session.exec(statement)
+        deleted_num = 0
+        for result in results.all():
+            self.session.delete(result)
+            deleted_num += 1
+
+        return deleted_num
