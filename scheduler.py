@@ -10,7 +10,7 @@ from core.models.model import Website, WebsiteType
 from core.services.article import ArticleService
 from core.services.fetcher import FetcherService
 from core.services.notification import (
-    # DiscordService,
+    DiscordService,
     NotificationService,
 )
 
@@ -85,7 +85,9 @@ def main() -> None:
 
         def thread_wrapper(website: Website) -> None:
             """スレッド用のラッパー関数."""
-            results[website.name] = process_site(website, session)
+            with Session(engine) as session:
+                results[website.name] = process_site(website, session)
+                session.commit()
 
         # 各サイトを並行処理
         for website in websites:
