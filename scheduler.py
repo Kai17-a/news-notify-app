@@ -5,6 +5,7 @@ from datetime import timedelta, timezone
 from apscheduler.schedulers.blocking import BlockingScheduler
 from sqlmodel import Session, create_engine
 
+from app import SlackService
 from core.config import logger
 from core.models.model import Website, WebsiteType
 from core.services.article import ArticleService
@@ -15,6 +16,7 @@ from core.services.notification import (
 )
 
 # from core.services.webhook import WebhookService
+from core.services.webhook import WebhookService
 from core.services.website import WebsiteService
 
 # デバッグモードを指定するオプション
@@ -43,18 +45,36 @@ def process_site(website: Website, session: Session) -> bool:
         elif website.type == WebsiteType.SCRAPING:
             articles = fetcher_service.fetch_scrap()
         else:
-            msg = "想定しないウェブサイトタイプ"
+            msg = f"想定しないウェブサイトタイプ: {website.name}"
             logger.exception(msg)
             return False
 
-        # Webhook
-        # if website.type == "discord":
-        #     post_target = DiscordService()
+        webhook_service = WebhookService(session)
+        webhooks = webhook_service.get_target_webhook(website)
 
-        notification_service.post_message()
+        if not webhooks:
+            logger.warning("対象となるwebhook情報が見つかりません: %s", website.name)
+            return False
 
-        for article in articles:
-            print(article.title)
+        success_count = 0
+        for webhook in webhooks:
+            webhook_service_map = {
+                "discord": DiscordService,
+                "slack": SlackService,
+                # "teams": TeamsService,
+            }
+
+            service_class = webhook_service_map.get(webhook.service_type.lower())
+            if not service_class:
+                raise ValueError(f"サポートされていないサービスタイプ: {webhook.service_type}")
+
+            target_webhook_service = service_class(webhook)
+
+            notification_service.post_message(target_webhook_service, website, articles)
+            success_count += 1
+
+        # for article in articles:
+        #     print(article.title)
 
     except Exception:  # noqa: BLE001
         logger.exception("サイト処理中の予期しないエラー [%s]", website.name)

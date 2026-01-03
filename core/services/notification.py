@@ -58,7 +58,7 @@ class __NotificationServiceImpl(ABC):
                     max_retries,
                 )
                 if attempt < max_retries:
-                    time.sleep(1)
+                    time.sleep(5)
                 else:
                     raise
             except Exception:
@@ -186,7 +186,12 @@ class NotificationService:
         # webhookテーブルからurlを取得するため
         self.repository = WebhookRepository(session)
 
-    def post_message(self, service: __NotificationServiceImpl) -> None:
+    def post_message(
+        self,
+        service: __NotificationServiceImpl,
+        website: Website,
+        articles: list[Article],
+    ) -> None:
         """Send a notification message via webhook.
 
         Parameters:
@@ -199,4 +204,4 @@ class NotificationService:
         requests.RequestException
             If sending the request to the webhook fails.
         """
-        service.send_notification()
+        service.send_notification(website, articles)
