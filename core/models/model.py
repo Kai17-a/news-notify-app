@@ -1,4 +1,5 @@
 from enum import Enum
+import hashlib
 
 from sqlmodel import Field, SQLModel, text
 
@@ -38,6 +39,11 @@ class Article(SQLModel, table=True):
     def to_embed_dict(self) -> dict[str, str]:
         """Discord埋め込み用の辞書に変換."""
         return {"title": self.title, "url": self.url}
+
+    def calc_hash(self) -> str:
+        """記事のハッシュ値を生成(重複チェック用)."""
+        content = f"{self.title}|{self.url}"
+        return hashlib.md5(content.encode("utf-8")).hexdigest()
 
 
 class Webhook(SQLModel, table=True):

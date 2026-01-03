@@ -31,7 +31,8 @@ class FetcherService:
 
     def __is_already_fetched(self, article: Article) -> bool:
         """過去に取得している記事か."""
-        return self.article_repository.get_by_url(article.url) is not None
+        result = self.article_repository.get_by_hash(article.calc_hash())
+        return result is not None
 
     def fetch_rss(self) -> list[Article]:
         """RSSフィードから記事を取得."""
