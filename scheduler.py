@@ -76,6 +76,16 @@ def process_site(website: Website, session: Session) -> bool:
             notification_service.post_message(target_webhook_service, website, articles)
             success_count += 1
 
+        # 投稿成功後、記事をデータベースに保存
+        if success_count > 0:
+            saved_count = article_service.save_article(articles, website.name)
+            msg = f"投稿完了: {website.name} ({success_count}/{len(webhooks)} Webhook成功, {saved_count}件DB保存)"
+            logger.info(msg)
+        else:
+            msg = f"全てのWebhookで投稿に失敗: {website.name}"
+            logger.exception(msg)
+            return False
+
     except Exception:  # noqa: BLE001
         logger.exception("サイト処理中の予期しないエラー [%s]", website.name)
         return False
