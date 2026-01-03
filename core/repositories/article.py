@@ -1,4 +1,4 @@
-from sqlmodel import Session, select, col
+from sqlmodel import Session, col, select
 
 from core.config import logger
 from core.models.model import Article
