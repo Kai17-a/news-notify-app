@@ -16,7 +16,7 @@ class ArticleService:
         # webhookテーブルからurlを取得するため
         self.repository = ArticleRepository(session)
 
-    def save_article(self, articles: list[Article]) -> None:
+    def save_article(self, articles: list[Article], site_name: str) -> None:
         """取得した記事を登録.
 
         Parameters:
@@ -26,6 +26,8 @@ class ArticleService:
 
         """
         for article in articles:
+            article.hash = article.calc_hash()
+            article.site_name = site_name
             self.repository.save(article)
 
     def delete_old_article(self) -> int:

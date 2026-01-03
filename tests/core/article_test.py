@@ -22,22 +22,22 @@ def engine():
 
 
 class TestArticle:
-
     def test_save_article(self, engine):
         test_article_data = Article(
             title="test",
             url="https://example.com",
-            site_name="test",
+            site_name="",
         )
 
         with Session(engine) as session:
             service = ArticleService(session)
-            service.save_article([test_article_data])
+            service.save_article([test_article_data], "test_site")
             session.commit()
 
             article = session.exec(select(Article)).first()
             assert article is not None
             assert article.title == "test"
+            assert article.site_name == "test_site"
 
             session.delete(article)
             session.commit()
@@ -47,19 +47,19 @@ class TestArticle:
             Article(
                 title="delete_test1",
                 url="https://example.com",
-                site_name="test",
+                site_name="",
                 created_at="2024-01-01 12:00:00",
             ),
             Article(
                 title="not_delete_test2",
                 url="https://example.com",
-                site_name="test",
+                site_name="",
             ),
         ]
 
         with Session(engine) as session:
             service = ArticleService(session)
-            service.save_article(test_article_data)
+            service.save_article(test_article_data, "test_site")
             session.commit()
 
             result = service.delete_old_article()
