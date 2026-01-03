@@ -34,6 +34,7 @@ engine = create_engine(sqlite_url, echo=args.debug)
 def process_site(website: Website, session: Session) -> bool:
     """サイトの記事を処理して投稿."""
     try:
+        article_service = ArticleService(session)
         fetcher_service = FetcherService(website, session)
         notification_service = NotificationService(session)
         logger.info(f"サイト処理開始: {website.name}")
@@ -42,7 +43,7 @@ def process_site(website: Website, session: Session) -> bool:
         articles = []
         if website.type == WebsiteType.RSS.value:
             articles = fetcher_service.fetch_rss()
-        elif website.type == WebsiteType.SCRAPING:
+        elif website.type == WebsiteType.SCRAPING.value:
             articles = fetcher_service.fetch_scrap()
         else:
             msg = f"想定しないウェブサイトタイプ: {website.name}"
@@ -66,18 +67,18 @@ def process_site(website: Website, session: Session) -> bool:
 
             service_class = webhook_service_map.get(webhook.service_type.lower())
             if not service_class:
-                raise ValueError(f"サポートされていないサービスタイプ: {webhook.service_type}")
+                msg = f"サポートされていないサービスタイプ: {webhook.service_type}"
+                logger.warning(msg)
+                return False
 
             target_webhook_service = service_class(webhook)
 
             notification_service.post_message(target_webhook_service, website, articles)
             success_count += 1
 
-        # for article in articles:
-        #     print(article.title)
-
     except Exception:  # noqa: BLE001
         logger.exception("サイト処理中の予期しないエラー [%s]", website.name)
+        return False
     else:
         return True
 
@@ -86,7 +87,6 @@ def main() -> None:
     """メイン処理: 全サイトの記事を並行処理で取得・投稿."""
     with Session(engine) as session:
         article_service = ArticleService(session)
-        # webhook_service = WebhookService(session)
         website_service = WebsiteService(session)
 
         # 古い記事のクリーンアップ
@@ -129,8 +129,6 @@ def main() -> None:
 
         logger.info(f"ニュース収集処理完了: {successful}/{total} サイト成功")
 
-        # webhooks = webhook_service.get_webhook()
-
         session.commit()
 
 
@@ -146,7 +144,7 @@ def run_scheduler() -> None:
             main,
             "cron",
             hour=9,
-            minute=32,
+            minute=0,
             timezone=jst,
             id="news_collector",
             max_instances=1,  # 同時実行を防ぐ
