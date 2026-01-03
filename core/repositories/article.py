@@ -1,4 +1,4 @@
-from sqlmodel import Session, select
+from sqlmodel import Session, select, col
 
 from core.config import logger
 from core.models.model import Article
@@ -63,13 +63,13 @@ class ArticleRepository:
         ValueError
             If no article with the specified id exists.
         """
-        article = self.session.exec(
-            select(Article).where(Article.id == article_id),
-        ).first()
-        if article is None:
-            error_message = f"Article with id {article_id} does not exist."
-            raise ValueError(error_message)
-        return article
+        try:
+            article = self.session.get(Article, article_id)
+        except Exception:
+            logger.exception("Failed to get Article by id")
+            return None
+        else:
+            return article
 
     def get_by_hash(self, hash_value: str) -> Article:
         """Retrieve an article by its hash.
@@ -89,13 +89,15 @@ class ArticleRepository:
         ValueError
             If no article with the specified hash exists.
         """
-        article = self.session.exec(
-            select(Article).where(Article.hash == hash_value),
-        ).first()
-        if article is None:
-            error_message = f"Article with hash {hash} does not exist."
-            raise ValueError(error_message)
-        return article
+        try:
+            article = self.session.exec(
+                select(Article).where(col(Article.hash) == hash_value),
+            )
+        except Exception:
+            logger.exception("Failed to get Article by hash")
+            return None
+        else:
+            return article.first()
 
     def get_by_url(self, url: str) -> Article | None:
         """Retrieve an article by its url.
