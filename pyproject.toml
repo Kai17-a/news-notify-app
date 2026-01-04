@@ -47,8 +47,6 @@ exclude = [
 # combine-as-imports = true
 
 [project.scripts]
-app = "app:run_scheduler"
-app-once = "app:run_once"
 api = "api:run_api"
 test = "scripts.test:run_all_tests"
 test-api = "scripts.test:run_api_tests"
