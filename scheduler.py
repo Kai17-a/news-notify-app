@@ -5,7 +5,6 @@ from datetime import timedelta, timezone
 from apscheduler.schedulers.blocking import BlockingScheduler
 from sqlmodel import Session, create_engine
 
-from app import SlackService
 from core.config import logger
 from core.models.model import Website, WebsiteType
 from core.services.article import ArticleService
@@ -13,6 +12,7 @@ from core.services.fetcher import FetcherService
 from core.services.notification import (
     DiscordService,
     NotificationService,
+    SlackService,
 )
 
 # from core.services.webhook import WebhookService
