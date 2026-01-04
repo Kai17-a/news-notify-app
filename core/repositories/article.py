@@ -1,4 +1,4 @@
-from sqlmodel import Session, col, select
+from sqlmodel import Session, col, func, select
 
 from core.config import logger
 from core.models.model import Article
@@ -44,6 +44,9 @@ class ArticleRepository:
             A list of all articles in the database, ordered by id.
         """
         return self.session.exec(select(Article).order_by(Article.id)).all()
+
+    def get_count(self) -> int:
+        return self.session.exec(select(func.count(col(Article.id)))).one()
 
     def get_by_id(self, article_id: int) -> Article:
         """Retrieve an article by its id.

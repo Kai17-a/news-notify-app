@@ -16,6 +16,18 @@ class ArticleService:
         # webhookテーブルからurlを取得するため
         self.repository = ArticleRepository(session)
 
+    def get_article_count(self) -> int:
+        """登録された記事件数を取得
+
+        Returns:
+            int: 登録された記事数
+        """
+        try:
+            return self.repository.get_count()
+        except Exception:
+            logger.exception("登録記事件数取得エラー")
+            raise
+
     def save_article(self, articles: list[Article], site_name: str) -> None:
         """取得した記事を登録.
 
