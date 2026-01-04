@@ -36,6 +36,16 @@ class WebhookService:
         else:
             return webhooks
 
+    def get_webhook_by_id(self, webhook_id: int) -> Webhook:
+        """IDでWebhook情報を取得."""
+        try:
+            webhook = self.repository.get_by_id(webhook_id)
+        except Exception:
+            logger.exception("Webhook取得エラー")
+            raise
+        else:
+            return webhook
+
     def get_target_webhook(self, website: Website) -> list[Webhook]:
         """送信対象Webhook情報を登録."""
         webhooks = self.get_webhook()
