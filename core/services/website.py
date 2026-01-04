@@ -27,6 +27,14 @@ class WebsiteService:
             logger.exception("Website取得エラー")
             raise
 
+    def get_website_by_id(self, website_id: int) -> Website:
+        """IDからWebsite情報取得."""
+        try:
+            return self.repository.get_by_id(website_id)
+        except Exception:
+            logger.exception("Website取得エラー")
+            raise
+
     def update_website(self, website: Website) -> None:
         """Website情報を更新.
 
