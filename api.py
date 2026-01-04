@@ -74,6 +74,28 @@ async def get_stats():
         }
 
 
+# Article API
+@app.delete("/articles", response_model=StatusResponse)
+async def cleanup_articles():
+    """登録記事削除"""
+    try:
+        with Session(engine) as session:
+            service = ArticleService(session)
+            deleted_article = service.delete_old_article()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Article削除エラー: {e!s}",
+        )
+    else:
+        if deleted_article > 0:
+            return StatusResponse(message="Article削除成功", success=True)
+        else:
+            return StatusResponse(
+                message="削除対象の記事がありませんでした", success=True
+            )
+
+
 # Webhook API
 @app.get("/webhooks", response_model=list[Webhook])
 async def get_webhooks():
@@ -180,21 +202,20 @@ async def get_webhook(webhook_id: int):
 #         )
 
 
-# @app.delete("/webhooks/{webhook_id}", response_model=StatusResponse)
-# async def delete_webhook(webhook_id: int):
-#     """Webhookを削除"""
-#     try:
-#         if db.delete_webhook(webhook_id):
-#             return StatusResponse(message="Webhook削除成功", success=True)
-#         else:
-#             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Webhookが見つかりません")
-#     except HTTPException:
-#         raise
-#     except Exception as e:
-#         raise HTTPException(
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#             detail=f"Webhook削除エラー: {e!s}",
-#         )
+@app.delete("/webhooks/{webhook_id}", response_model=StatusResponse)
+async def delete_webhook(webhook_id: int):
+    """Webhookを削除"""
+    try:
+        with Session(engine) as session:
+            service = WebhookService(session)
+            service.delete_webhook_by_id(webhook_id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Webhook削除エラー: {e!s}",
+        )
+    else:
+        return StatusResponse(message="Webhook削除成功", success=True)
 
 
 # Website API
@@ -301,21 +322,20 @@ async def get_website(website_id: int):
 #         )
 
 
-# @app.delete("/websites/{website_id}", response_model=StatusResponse)
-# async def delete_website(website_id: int):
-#     """Websiteを削除"""
-#     try:
-#         if db.delete_website(website_id):
-#             return StatusResponse(message="Website削除成功", success=True)
-#         else:
-#             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Websiteが見つかりません")
-#     except HTTPException:
-#         raise
-#     except Exception as e:
-#         raise HTTPException(
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#             detail=f"Website削除エラー: {e!s}",
-#         )
+@app.delete("/websites/{website_id}", response_model=StatusResponse)
+async def delete_website(website_id: int):
+    """Websiteを削除"""
+    try:
+        with Session(engine) as session:
+            service = WebsiteService(session)
+            service.delete_website(website_id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Website削除エラー: {e!s}",
+        )
+    else:
+        return StatusResponse(message="Website削除成功", success=True)
 
 
 def run_api():
