@@ -13,6 +13,7 @@ from core.services.notification import (
     DiscordService,
     NotificationService,
     SlackService,
+    TeamsService,
 )
 
 # from core.services.webhook import WebhookService
@@ -62,7 +63,7 @@ def process_site(website: Website, session: Session) -> bool:
             webhook_service_map = {
                 "discord": DiscordService,
                 "slack": SlackService,
-                # "teams": TeamsService,
+                "teams": TeamsService,
             }
 
             service_class = webhook_service_map.get(webhook.service_type.lower())
