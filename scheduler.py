@@ -153,7 +153,7 @@ def run_scheduler() -> None:
         scheduler.add_job(
             main,
             "cron",
-            hour=9,
+            hour="9, 18",
             minute=0,
             timezone=jst,
             id="news_collector",
