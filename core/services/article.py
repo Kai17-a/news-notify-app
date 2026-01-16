@@ -28,6 +28,22 @@ class ArticleService:
             logger.exception("登録記事件数取得エラー")
             raise
 
+    def get_articles_with_offset(self, page: int, per_page: int) -> list[Article]:
+        """登録された記事を offset を指定して取得
+
+        Parameters:
+        -----------
+        page : int
+            取得するページ
+        per_page : int
+            取得する１ページ当たりの件数
+        """
+        try:
+            return self.repository.get_with_offset(offset=(page - 1) * per_page, limit=per_page)
+        except Exception:
+            logger.exception("登録記事件数取得エラー")
+            raise
+
     def save_article(self, articles: list[Article], site_name: str) -> None:
         """取得した記事を登録.
 

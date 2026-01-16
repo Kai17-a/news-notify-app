@@ -22,11 +22,64 @@ def engine():
 
 
 class TestArticle:
+    def test_get_article_with_offset(self, engine):
+        test_article_data = [
+            Article(
+                hash="",
+                title="test_get_article_with_offset1",
+                url="https://example.com",
+                site_name="",
+                created_at="2024-01-01 12:00:00",
+            ),
+            Article(
+                hash="",
+                title="test_get_article_with_offset2",
+                url="https://example.com",
+                site_name="",
+                created_at="2024-01-01 12:00:00",
+            ),
+            Article(
+                hash="",
+                title="test_get_article_with_offset3",
+                url="https://example.com",
+                site_name="",
+                created_at="2024-01-01 12:00:00",
+            ),
+            Article(
+                hash="",
+                title="test_get_article_with_offsett4",
+                url="https://example.com",
+                site_name="",
+                created_at="2024-01-01 12:00:00",
+            ),
+            Article(
+                hash="",
+                title="test_get_article_with_offset5",
+                url="https://example.com",
+                site_name="",
+                created_at="2024-01-01 12:00:00",
+            ),
+        ]
+
+        with Session(engine) as session:
+            service = ArticleService(session)
+            service.save_article(test_article_data, "test_site")
+            session.commit()
+
+            articles = service.get_articles_with_offset(1, 3)
+            assert len(articles) == 3
+            articles = service.get_articles_with_offset(2, 3)
+            assert len(articles) == 2
+            articles = service.get_articles_with_offset(3, 3)
+            assert len(articles) == 0
+
+            for article in test_article_data:
+                session.delete(article)
+            session.commit()
+
     def test_save_article(self, engine):
         test_article_data = Article(
-            title="test",
-            url="https://example.com",
-            site_name="",
+            hash="", title="test", url="https://example.com", site_name="", created_at="2000-01-01"
         )
 
         with Session(engine) as session:
@@ -45,15 +98,18 @@ class TestArticle:
     def test_delete_old_article(self, engine):
         test_article_data = [
             Article(
+                hash="",
                 title="delete_test1",
                 url="https://example.com",
                 site_name="",
                 created_at="2024-01-01 12:00:00",
             ),
             Article(
+                hash="",
                 title="not_delete_test2",
                 url="https://example.com",
                 site_name="",
+                created_at="2026-01-01 12:00:00",
             ),
         ]
 

@@ -45,6 +45,24 @@ class ArticleRepository:
         """
         return self.session.exec(select(Article).order_by(Article.id)).all()
 
+    def get_with_offset(self, offset: int = 0, limit: int = 20) -> list[Article]:
+        """Retrieve articles with offset.
+
+        Parameters
+        ----------
+        offset : int
+        limit : int
+
+        Returns:
+        -------
+        list[Article]
+            A list of all articles in the database, ordered by id.
+        """
+        articles = self.session.exec(
+            select(Article).order_by(col(Article.created_at).desc()).limit(limit).offset(offset)
+        ).all()
+        return articles
+
     def get_count(self) -> int:
         return self.session.exec(select(func.count(col(Article.id)))).one()
 
