@@ -66,7 +66,7 @@ class ArticleRepository:
     def get_count(self) -> int:
         return self.session.exec(select(func.count(col(Article.id)))).one()
 
-    def get_by_id(self, article_id: int) -> Article:
+    def get_by_id(self, article_id: int) -> Article | None:
         """Retrieve an article by its id.
 
         Parameters
@@ -92,7 +92,7 @@ class ArticleRepository:
         else:
             return article
 
-    def get_by_hash(self, hash_value: str) -> Article:
+    def get_by_hash(self, hash_value: str) -> Article | None:
         """Retrieve an article by its hash.
 
         Parameters
