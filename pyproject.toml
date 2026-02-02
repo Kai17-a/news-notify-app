@@ -3,7 +3,7 @@ name = "news-notify-app"
 version = "0.1.0"
 description = "News aggregation and notification application"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = [
     "requests>=2.31.0",
     "feedparser>=6.0.10",
@@ -12,22 +12,47 @@ dependencies = [
     "apscheduler>=3.10.0",
     "fastapi>=0.104.0",
     "uvicorn>=0.24.0",
+    "sqlmodel>=0.0.27",
+    "alembic>=1.17.2",
+    "pytest>=9.0.2",
+    "python-dotenv>=1.2.1",
 ]
 
-[tool.uv]
-dev-dependencies = [
-    "pytest>=7.4.0",
-    "pytest-asyncio>=0.21.0",
-    "pre-commit>=3.5.0",
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    "alembic",
 ]
+
+# [tool.ruff.lint]
+# select = [
+#     "E",      # pycodestyle errors
+#     "W",      # pycodestyle warnings
+#     "F",      # pyflakes
+#     "I",      # isort
+#     "C",      # flake8-comprehensions
+#     "B",      # flake8-bugbear
+#     "UP",     # pyupgrade
+# ]
+# ignore = ["E501", "C901"]
+
+# [tool.ruff.lint.isort]
+# known-first-party = ["src"]
+# combine-as-imports = true
 
 [project.scripts]
-app = "app:run_scheduler"
-app-once = "app:run_once"
 api = "api:run_api"
 test = "scripts.test:run_all_tests"
 test-api = "scripts.test:run_api_tests"
 setup-hooks = "scripts.setup_hooks:setup_pre_push"
+scheduler = "scheduler:run_scheduler"
+scheduler-once = "scheduler:run_once"
 
 [build-system]
 requires = ["hatchling"]
