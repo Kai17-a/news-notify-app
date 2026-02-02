@@ -60,3 +60,11 @@ class WebhookService:
         ]
 
         return [webhook for webhook in webhooks if str(webhook.id) in target_ids]
+
+    def delete_webhook_by_id(self, webhook_id: int) -> None:
+        """Webhook情報を削除."""
+        try:
+            self.repository.delete_by_id(webhook_id)
+        except Exception:
+            logger.exception("Webhook削除エラー")
+            raise
