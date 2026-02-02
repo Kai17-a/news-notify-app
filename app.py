@@ -480,7 +480,7 @@ class ArticleDatabase:
             logger.error(f"記事数取得エラー: {e}")
             return 0
 
-    def cleanup_old_articles(self, days: int = 30) -> int:
+    def cleanup_old_articles(self, days: int = 100) -> int:
         """古い記事を削除（デフォルト30日以上前）"""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -960,7 +960,7 @@ def main() -> None:
 
         # 古い記事のクリーンアップ（30日以上前の記事を削除）
         if total_articles > 1000:  # 記事数が多い場合のみクリーンアップ
-            db.cleanup_old_articles(30)
+            db.cleanup_old_articles(100)
 
         news_sites = get_news_website_list()
         if not news_sites:
