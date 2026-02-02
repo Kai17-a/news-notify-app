@@ -109,7 +109,7 @@ class TestArticle:
                 title="not_delete_test2",
                 url="https://example.com",
                 site_name="",
-                created_at="2026-01-01 12:00:00",
+                created_at="2035-01-01 12:00:00",
             ),
         ]
 
