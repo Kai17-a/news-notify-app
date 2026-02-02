@@ -1,7 +1,9 @@
 import argparse
-from pydantic import BaseModel
+from typing import Generic, TypeVar
+
 import uvicorn
 from fastapi import FastAPI, HTTPException, status
+from pydantic import BaseModel
 from sqlmodel import Session, create_engine
 
 from core.models.model import Article, Webhook, Website
@@ -17,6 +19,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-d", "--debug", action="store_true", help="デバッグモード")
 args = parser.parse_args()
 
+DataT = TypeVar("DataT")
+
 sqlite_file_name = "news_notify_app.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 
@@ -29,6 +33,13 @@ app = FastAPI(
     version="0.1.0",
     root_path="/api/v1",
 )
+
+
+class ListResponse(BaseModel, Generic[DataT]):
+    data: list[DataT]
+    page: int = 0
+    per_page: int = 20
+    count: int
 
 
 class StatusResponse(BaseModel):
@@ -75,6 +86,23 @@ async def get_stats():
 
 
 # Article API
+@app.get("/articles", response_model=ListResponse)
+async def get_articles(
+    page: int = 1,
+    per_page: int = 20,
+):
+    try:
+        with Session(engine) as session:
+            service = ArticleService(session)
+            articles = service.get_articles_with_offset(page, per_page)
+            articles_cnt = service.get_article_count()
+
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Articles取得エラー: {e!s}")
+    else:
+        return ListResponse[Article](data=articles, page=page, per_page=per_page, count=articles_cnt)
+
+
 @app.delete("/articles", response_model=StatusResponse)
 async def cleanup_articles():
     """登録記事削除"""
@@ -91,9 +119,7 @@ async def cleanup_articles():
         if deleted_article > 0:
             return StatusResponse(message="Article削除成功", success=True)
         else:
-            return StatusResponse(
-                message="削除対象の記事がありませんでした", success=True
-            )
+            return StatusResponse(message="削除対象の記事がありませんでした", success=True)
 
 
 # Webhook API
@@ -259,9 +285,7 @@ async def get_website(website_id: int):
             website = service.get_website_by_id(website_id)
 
         if not website:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Websiteが見つかりません"
-            )
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Websiteが見つかりません")
 
     except HTTPException:
         raise
@@ -340,7 +364,7 @@ async def delete_website(website_id: int):
 
 def run_api():
     """APIサーバーを起動"""
-    uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True, log_level="info")
+    uvicorn.run("api:app", host="0.0.0.0", port=18000, reload=True, log_level="info")
 
 
 if __name__ == "__main__":
